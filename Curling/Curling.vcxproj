@@ -132,7 +132,7 @@
     <ClInclude Include="strategy.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="readme.md" />
+    <None Include="..\readme.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
