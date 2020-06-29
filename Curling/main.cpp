@@ -11,7 +11,7 @@ GAMESTATE GameState;
 
 //! initialize GAMESTATE
 void initGameState(GAMESTATE *pgs) {
-	memset(pgs->body, 0x00, sizeof(float) * 32);
+	memset(pgs->body, 0x00, sizeof(double) * 32);
 	memset(pgs->Score, 0x00, sizeof(int) * 10);
 	pgs->LastEnd = 0;
 	pgs->CurEnd = 0;
@@ -124,13 +124,13 @@ bool processCommand(char *command)
 			if (!GetArgument(buffer, sizeof(buffer), command, 2 * i + 1)) {
 				return false;
 			}
-			GameState.body[i][0] = (float)atof(buffer);
+			GameState.body[i][0] = (double)atof(buffer);
 
 			// get y cordinate
 			if (!GetArgument(buffer, sizeof(buffer), command, 2 * i + 2)) {
 				return false;
 			}
-			GameState.body[i][1] = (float)atof(buffer);
+			GameState.body[i][1] = (double)atof(buffer);
 		}
 	}
 	else if (_stricmp(cmd, "SETSTATE") == 0) {
@@ -186,33 +186,33 @@ bool processCommand(char *command)
 		if (GetArgument(buffer, sizeof(buffer), command, 1) == FALSE) {
 			return false;
 		}
-		motionInfo.x_coordinate = (float)atof(buffer);
+		motionInfo.x_coordinate = (double)atof(buffer);
 
 		if (GetArgument(buffer, sizeof(buffer), command, 2) == FALSE) {
 			return false;
 		}
-		motionInfo.y_coordinate = (float)atof(buffer);
+		motionInfo.y_coordinate = (double)atof(buffer);
 
 		if (GetArgument(buffer, sizeof(buffer), command, 3) == FALSE) {
 			return false;
 		}
-		motionInfo.x_velocity = (float)atof(buffer);
+		motionInfo.x_velocity = (double)atof(buffer);
 
 		if (GetArgument(buffer, sizeof(buffer), command, 4) == FALSE) {
 			return false;
 		}
-		motionInfo.y_velocity = (float)atof(buffer);
+		motionInfo.y_velocity = (double)atof(buffer);
 
 		if (GetArgument(buffer, sizeof(buffer), command, 5) == FALSE) {
 			return false;
 		}
-		motionInfo.angular_velocity = (float)atof(buffer);
+		motionInfo.angular_velocity = (double)atof(buffer);
 
 		// TODO you need to make your sweep decision according to the motion information
 		// if you don't want to sweep, just send nothing
 
 		// create SWEEP command
-		float sweepDistance = 4.0f; // you need to estimate the distance you want to sweep
+		double sweepDistance = 0.0f; // you need to estimate the distance you want to sweep
 		sprintf_s(buffer, sizeof(char) * BUFSIZE, "SWEEP %f", sweepDistance);
 		// send SWEEP command
 		sendCommand(buffer);
