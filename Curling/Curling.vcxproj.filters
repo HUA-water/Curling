@@ -21,6 +21,9 @@
     <ClCompile Include="strategy.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="simulator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -29,5 +32,11 @@
     <ClInclude Include="strategy.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="simulator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\readme.md" />
   </ItemGroup>
 </Project>
