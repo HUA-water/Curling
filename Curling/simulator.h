@@ -19,7 +19,7 @@ public:
 	Platform(const GAMESTATE* const gs);
 	void AddBall(double vy, double dx, double angle);
 	void Run();
-	double Evaluation(const GAMESTATE* const gs);
+	double Evaluation(const Platform& const oldPlatform);
 	bool InDefendArea(std::complex<double> position);
 	bool InHouse(std::complex<double> position);
 
