@@ -17,7 +17,7 @@ void Platform::Run() {
 	bool moveFlag;
 	do {
 		moveFlag = false;
-		int collisionCount = 4;
+		int collisionCount = 6;
 		while (collisionCount > 0){
 			collisionCount--;
 			bool collisionFlag = true;

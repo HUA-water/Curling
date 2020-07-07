@@ -1,11 +1,13 @@
 #include "strategy.h"
 #include "simulator.h"
+#include <ctime>
 using namespace std;
 
 
 // make your decision here
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
+	int startTime = clock();
 	double maxValue = -INF;
 	
 	for (double dx = -1.5; dx <= 1.5; dx += 0.1) {
@@ -31,5 +33,6 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 			}
 		}
 	}
+	printf("COST: %lf s\n", 1.*(clock() - startTime)/CLOCKS_PER_SEC);
 	return;
 }
