@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #pragma once
 #include <string>
 #include <cstring>
@@ -93,7 +94,6 @@ bool GetArgument(char *lpResult, size_t numberOfElements, char *Message, int n)
 			}
 		}
 	}
-
 	return true;
 }
 
@@ -212,12 +212,11 @@ bool processCommand(char *command)
 		// if you don't want to sweep, just send nothing
 
 		// create SWEEP command
-		float sweepDistance = 4.0f; // you need to estimate the distance you want to sweep
+		float sweepDistance = 0.0f; // you need to estimate the distance you want to sweep
 		sprintf_s(buffer, sizeof(char) * BUFSIZE, "SWEEP %f", sweepDistance);
 		// send SWEEP command
 		sendCommand(buffer);
 	}
-
 	return true;
 }
 
@@ -275,6 +274,5 @@ int main()
 			}
 		}
 	}
-
 	return 0;
 }

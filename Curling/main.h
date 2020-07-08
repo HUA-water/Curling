@@ -6,7 +6,7 @@
 #include <assert.h>
 
 #include <iostream>
-#include<winsock.h>
+#include <winsock.h>
 #pragma comment(lib,"ws2_32.lib")
 
 #ifdef _WIN32

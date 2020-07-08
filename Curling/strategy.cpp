@@ -15,9 +15,19 @@ float get_dist(float x1, float y1, float x2, float y2)
 }
 
 //  is a Stone in House
-bool is_in_House(float x, float y)
+bool is_in_House(const float x, const float y)
 {
 	if (get_dist(x, y) < pow(HOUSE_R + STONE_R, 2)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+bool is_in_House(const float* coordinate)
+{
+	if (get_dist(coordinate[0], coordinate[1]) < pow(HOUSE_R + STONE_R, 2)) {
 		return true;
 	}
 	else {
@@ -50,6 +60,142 @@ void get_ranking(int *rank, const GAMESTATE* const gs)
 		}
 	}
 }
+
+void setShot(SHOTINFO* vec_ret, float speed, float h_x, float angle)
+{
+	vec_ret->speed = speed;
+	vec_ret->h_x = h_x;
+	vec_ret->angle = angle;
+}
+
+bool isFreeZone(const float* coordinate)
+{
+	bool flag = (coordinate[1] > TEE_Y && !is_in_House(coordinate)) ? 1 : 0;
+	return flag;
+}
+
+bool isAlive(const float* coordinate)
+{
+	return isFreeZone(coordinate) || is_in_House(coordinate);
+}
+
+// firsthand best shot
+void getFirstBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret, int* rank)
+{
+	switch (int(gs->ShotNum / 2))
+	{
+	case 0: 
+		setShot(vec_ret, 2.5f, 0.0f, 0.0f);
+		printf("0");
+		break;
+	case 1: 
+		setShot(vec_ret, 2.5f, gs->body[0][0] - TEE_X + 0.5f, 0.0f); 
+		printf("1");
+		break;
+	case 2:
+		setShot(vec_ret, 2.5f, gs->body[0][0] - TEE_X - 0.5f, 0.0f); 
+		printf("2");
+		break;
+	case 3: 
+	case 4:
+		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1])) {
+			// this case your opponent's curling is in the house
+			if (rank[0] % 2 != gs->ShotNum % 2) setShot(vec_ret, 6.0f, -0.1f, 3.0f);
+			// this case your curling is in the house
+			else setShot(vec_ret, 2.9f, -0.1f, 3.4f);
+		}
+		// this case no curling is in the house
+		else setShot(vec_ret, 3.0f, -0.2f, 3.0f);
+		printf("3 & 4");
+		break;
+	case 5:
+	case 6:
+		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1])) {
+			// this case your opponent's curling is in the house
+			if (rank[0] % 2 != gs->ShotNum % 2) setShot(vec_ret, 6.0f, gs->body[rank[0]][0] - TEE_X - 0.1f, 3.0f);
+			// this case your curling is in the house
+			else setShot(vec_ret, 3.0f, 1.5f, -5.0f);
+		}
+		else setShot(vec_ret, 3.0f, -1.5f, 5.0f);
+		printf("5 & 6");
+		break;
+	case 7: 
+		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1])) {
+			// this case your opponent's curling is in the house
+			if (rank[0] % 2 != gs->ShotNum % 2) setShot(vec_ret, 6.0f, gs->body[rank[0]][0] - TEE_X, 0.0f);
+			// this case your curling is in the house
+			else setShot(vec_ret, 3.0f, 1.5f, -5.0f);
+		}
+		else setShot(vec_ret, 3.0f, -1.0f, 4.0f); 
+		printf("7");
+		break;
+	default: break;
+	}
+}
+
+// backhand best shot
+void getBackBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret, int* rank)
+{
+	switch (int(gs->ShotNum / 2))
+	{
+	case 0: 
+		if (isFreeZone(gs->body[0])) setShot(vec_ret, 3.0f, -1.5f, 8.0f);
+		else if (is_in_House(gs->body[0])) setShot(vec_ret, 6.0f, gs->body[0][0] - TEE_X, 0.0f);
+		else {
+			if (rand() > 0.5) setShot(vec_ret, 2.7f, -0.5f, -5.0f);
+			else setShot(vec_ret, 2.7f, 0.5f, 5.0f);
+		}
+		printf("0");
+		break;
+	case 1: 
+		if (isFreeZone(gs->body[0]) || isFreeZone(gs->body[2])) {
+			if (is_in_House(gs->body[1])) setShot(vec_ret, 2.8f, -1.5f, 8.0f);
+			else setShot(vec_ret, 3.0f, -1.5f, 8.0f);
+		}
+		else {
+			if (rand() > 0.5) setShot(vec_ret, 2.7f, -0.5f, -5.0f);
+			else setShot(vec_ret, 2.7f, 0.5f, 5.0f);
+		}
+		printf("1");
+		break;
+	case 2:
+	case 3:
+	case 4:
+		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1])) {
+			// this case your opponent's curling is in the house
+			if (rank[0] % 2 != gs->ShotNum % 2) setShot(vec_ret, 6.0f, -0.1f, 3.0f);
+			// this case your curling is in the house
+			else setShot(vec_ret, 2.9f, -0.1f, 3.4f);
+		}
+		// this case no curling is in the house
+		else setShot(vec_ret, 3.0f, -0.2f, 3.0f);
+		printf("2 & 3 & 4");
+		break;
+	case 5:
+	case 6: 
+		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1])) {
+			// this case your opponent's curling is in the house
+			if (rank[0] % 2 != gs->ShotNum % 2) setShot(vec_ret, 6.0f, gs->body[rank[0]][0] - TEE_X - 0.1f, 3.0f);
+			// this case your curling is in the house
+			else setShot(vec_ret, 3.0f, 1.5f, -5.0f);
+		}
+		else setShot(vec_ret, 3.0f, -1.5f, 5.0f);
+		printf("5 & 6");
+		break;
+	case 7: 
+		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1])) {
+			// this case your opponent's curling is in the house
+			if (rank[0] % 2 != gs->ShotNum % 2) setShot(vec_ret, 6.0f, gs->body[rank[0]][0] - TEE_X - 0.1f, 3.0f);
+			// this case your curling is in the house
+			else setShot(vec_ret, 3.0f, 1.5f, -5.0f);
+		}
+		else setShot(vec_ret, 3.0f, -1.0f, 4.0f);
+		printf("7");
+		break;
+	default: break;
+	}
+}
+
 // make your decision here
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
@@ -62,69 +208,12 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	// sort by distance from center
 	get_ranking(rank, gs);
 
-	// create Shot according to condition of No.1 Stone
-	if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1]))
-	{
-		if (rank[0] % 2 != gs->ShotNum % 2) {
-			// choose Shot 1. this case your opponent's curling is in the house
-			vec_ret->speed = 6.0f;
-			vec_ret->h_x = -0.1f;
-			vec_ret->angle = 3.0f;
-		}
-		else {
-			// choose Shot 2.
-			// this case your curling is in the house
-			vec_ret->speed = 2.9f;
-			vec_ret->h_x = -0.1f;
-			vec_ret->angle = 3.4f;
-		}
+	// my strategy
+	bool isFirst = gs->ShotNum % 2 ? 0 : 1;
+	if (isFirst) {
+		getFirstBestShot(gs, vec_ret, rank);
 	}
-	else {
-		// choose Shot 3.
-		// this case no curling is in the house
-		
-		vec_ret->speed = 3.0f;
-		vec_ret->h_x = -0.2f;
-		vec_ret->angle = 3.0f;
-	}
-	//  all bellow code is just for test
-	//  you need to make your good logic or model
-	if (gs->ShotNum > 10)
-	{
-		if (gs->ShotNum % 2 == 0)
-		{
-			vec_ret->speed = 3.0f;
-			vec_ret->h_x = 1.5f;
-			vec_ret->angle = -5.0f;
-		}
-		if (gs->ShotNum % 2 == 1)
-		{
-			vec_ret->speed = 3.0f;
-			vec_ret->h_x = -1.5f;
-			vec_ret->angle = 5.0f;
-		}
-	}
-	// last shot
-	if (gs->ShotNum > 14)
-	{
-		vec_ret->speed = 3.0f;
-		vec_ret->h_x = -1.0f;
-		vec_ret->angle = 4.0f;
-	}
-	// presentation for free defense zone rule
-	if (gs->ShotNum < 5)
-	{
-		if (gs->ShotNum % 2 == 0)
-		{
-			vec_ret->speed = 2.5f;
-			vec_ret->h_x = 0.0f;
-			vec_ret->angle = 0.0f;
-		}
-		else
-		{
-			vec_ret->speed = 5.0f;
-			vec_ret->h_x = 0.1f;
-			vec_ret->angle = -1.0f;
-		}
+	if (!isFirst) {
+		getBackBestShot(gs, vec_ret, rank);
 	}
 }

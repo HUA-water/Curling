@@ -9,11 +9,9 @@ typedef struct _GAMESTATE {
 	int		Score[8];		// score of each End (if Score < 0: First player in 1st End scored)
 	bool	WhiteToMove;	// Which player will shot next
 							// if WhiteToMove = 0: First player in 1st End will shot next, 
-							//  else (WhiteToMove = 1) : Second player will shot next
-
+							// else (WhiteToMove = 1) : Second player will shot next
 	float	body[16][2];	// body[n][0] : x of coordinate of n th stone
 							// body[n][1] : y of coordinate of n th stone
-
 }GAMESTATE, * PGAMESTATE;
 
 
