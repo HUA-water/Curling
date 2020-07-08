@@ -32,7 +32,7 @@ void Platform::Run() {
 
 								deltaC /= std::abs(deltaC);
 								std::complex<double> F = std::conj(deltaC) * deltaV;
-								if (F.real() > 2) {
+								if (std::abs(F.real()) > 2) {
 									F.imag(0);
 								}
 								else {
@@ -90,6 +90,13 @@ bool Platform::InHouse(std::complex<double> position) {
 	}
 	return false;
 }
+bool Platform::OutLoose(std::complex<double> position)
+{
+	if (position.imag() < BACK_LINE + 0.3 || position.real() < 0.2 || position.real() > MAX_POINT[0] - 0.2) {
+		return true;
+	}
+	return false;
+}
 bool Platform::InDefendArea(std::complex<double> position) {
 	if (InHouse(position)) {
 		return false;
@@ -102,12 +109,12 @@ bool Platform::InDefendArea(std::complex<double> position) {
 double Platform::Evaluation(const Platform& const oldPlatform) {
 	int N = Balls.size();
 	//自由防守区规则判断
-	if (N == 1 && !InDefendArea(Balls[0].coordinate)) {
+	/*if (N == 1 && !InDefendArea(Balls[0].coordinate)) {
 		return -INF;
-	}
+	}*/
 	if (N <= 5) {
 		for (int i = N - 2; i >= 0; i -= 2) {
-			if (InDefendArea(oldPlatform.Balls[i].coordinate) && Balls[i].coordinate.imag()<BACK_LINE + 1) {
+			if (InDefendArea(oldPlatform.Balls[i].coordinate) && OutLoose(Balls[i].coordinate)) {
 				return -INF;
 			}
 		}
@@ -129,13 +136,14 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	//我方壶尽可能分开
 	double tmpSum = 0;
 	int tmpCount = 0;
-	if (N != 16)
 	for (int i = N - 1; i >= 0; i -= 2) {
-		for (int j = i - 2; j >= 0; j -= 2) {
-			if (std::abs(Balls[i].coordinate) > eps && std::abs(Balls[j].coordinate) > eps) {
-				std::complex<double> dist = Balls[i].coordinate - Balls[j].coordinate;
-				tmpSum += max(min(std::abs(dist.real()), 0.5)/0.5, min(std::abs(dist.imag()), 1));
-				tmpCount++;
+		if (std::abs(Balls[i].coordinate) > eps) {
+			for (int j = i - 2; j >= 0; j -= 2) {
+				if (std::abs(Balls[j].coordinate) > eps) {
+					std::complex<double> dist = Balls[i].coordinate - Balls[j].coordinate;
+					tmpSum += max(min(std::abs(dist.real()), 1) * 3, min(std::abs(dist.imag()), 1.5));
+					tmpCount++;
+				}
 			}
 		}
 	}
@@ -162,7 +170,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		}
 	}
 	minDist[0] += 0.05;
-	if (N == 16) value = 0;
+	if (N == 16) value /= 100;
 
 	//根据离中心最近的壶做判断
 	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
@@ -180,16 +188,28 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	}
 
 	//场上对方壶数量越少越好
-	tmpWeight = 0;
+	tmpWeight = 0.5;
 	if (N & 1) {
 		tmpWeight = 10000;
 	}
 	//printf("%d\n", N);
 	for (int i = N - 2; i >= 0; i -= 2) {
 		//printf("%d (%lf,%lf) %d %d\n", i, Balls[i].coordinate.real(), Balls[i].coordinate.imag(), InHouse(std::abs(Balls[i].coordinate)), InDefendArea(std::abs(Balls[i].coordinate)));
-		if (InHouse(Balls[i].coordinate) || InDefendArea(Balls[i].coordinate)) {
-			double dist = std::abs(Balls[i].coordinate - TEE);
+
+		double dist = std::abs(Balls[i].coordinate - TEE);
+		if (dist < HOUSE_R + STONE_R + 0.05) {
 			value -= tmpWeight * (1 + 1. / (1 + dist));
+		}
+	}
+	//场上自己壶数量越多越好
+	tmpWeight = 1;
+	//printf("%d\n", N);
+	for (int i = N - 1; i >= 0; i -= 2) {
+		//printf("%d (%lf,%lf) %d %d\n", i, Balls[i].coordinate.real(), Balls[i].coordinate.imag(), InHouse(std::abs(Balls[i].coordinate)), InDefendArea(std::abs(Balls[i].coordinate)));
+
+		double dist = std::abs(Balls[i].coordinate - TEE);
+		if (dist < HOUSE_R + STONE_R - 0.05) {
+			value += tmpWeight * (1 + 1. / (1 + dist));
 		}
 	}
 	return value + record;
