@@ -127,7 +127,6 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	//printf("%d\n", N);
 
 	//我方壶尽可能分开
-	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
 	double tmpSum = 0;
 	int tmpCount = 0;
 	if (N != 16)
@@ -146,7 +145,6 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 	double WeightForY = 0.6;
 	//我方冰壶离中心越近越好
-	if (N != 16)
 	for (int i = N - 1, j = 1; i >= 0; i--, j = -j) {
 		if (std::abs(Balls[i].coordinate) > eps) {
 			double dist = std::abs(Balls[i].coordinate - TEE);
@@ -166,6 +164,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	minDist[0] += 0.05;
 
 	//根据离中心最近的壶做判断
+	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
 	double tmpWeight = 0.5;
 	if (N == 16) {
 		tmpWeight = 1000;

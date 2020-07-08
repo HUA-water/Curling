@@ -29,7 +29,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					vec_ret->h_x = dx;
 					vec_ret->angle = angle;
 				}
-				//printf("%lf %lf %lf : %lf\n", vy, dx, angle, tmp);
+				printf("%lf %lf %lf : %lf\n", vy, dx, angle, tmp);
 			}
 		}
 	}
