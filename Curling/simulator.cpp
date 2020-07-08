@@ -17,7 +17,7 @@ void Platform::Run() {
 	bool moveFlag;
 	do {
 		moveFlag = false;
-		int collisionCount = 2;
+		int collisionCount = 1;
 		while (collisionCount > 0){
 			collisionCount--;
 			bool collisionFlag = true;
@@ -134,7 +134,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		for (int j = i - 2; j >= 0; j -= 2) {
 			if (std::abs(Balls[i].coordinate) > eps && std::abs(Balls[j].coordinate) > eps) {
 				std::complex<double> dist = Balls[i].coordinate - Balls[j].coordinate;
-				tmpSum += max(min(std::abs(dist.real()), 0.3)/0.3, min(std::abs(dist.imag()), 1));
+				tmpSum += max(min(std::abs(dist.real()), 0.5)/0.5, min(std::abs(dist.imag()), 1));
 				tmpCount++;
 			}
 		}
@@ -162,12 +162,13 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		}
 	}
 	minDist[0] += 0.05;
+	if (N == 16) value = 0;
 
 	//根据离中心最近的壶做判断
 	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
 	double tmpWeight = 0.5;
 	if (N == 16) {
-		tmpWeight = 1000;
+		tmpWeight = 10000;
 	}
 	if (minDist[winSide] < HOUSE_R + STONE_R) {
 		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
@@ -179,10 +180,16 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	}
 
 	//场上对方壶数量越少越好
+	tmpWeight = 0;
+	if (N & 1) {
+		tmpWeight = 10000;
+	}
+	//printf("%d\n", N);
 	for (int i = N - 2; i >= 0; i -= 2) {
-		if (InHouse(std::abs(Balls[i].coordinate)) || InDefendArea(std::abs(Balls[i].coordinate))) {
+		//printf("%d (%lf,%lf) %d %d\n", i, Balls[i].coordinate.real(), Balls[i].coordinate.imag(), InHouse(std::abs(Balls[i].coordinate)), InDefendArea(std::abs(Balls[i].coordinate)));
+		if (InHouse(Balls[i].coordinate) || InDefendArea(Balls[i].coordinate)) {
 			double dist = std::abs(Balls[i].coordinate - TEE);
-			value -= 1 + 6 / (1+ dist);
+			value -= tmpWeight * (1 + 1. / (1 + dist));
 		}
 	}
 	return value + record;

@@ -35,7 +35,7 @@ public:
 	const double ANGLE_LOSS[3] = { 0.21, 0.21, 0.21 }; //转角损耗
 	const double VELOCITY_LOSS_ANGLE[3] = { 0.000737, 0, 0 }; //转角的存在导致的速度损耗
 	const double VELOCITY_ANGLE[3] = { 0.00196, 0, 0 }; //转角的存在导致的速度方向改变
-	const double DELTA_TIEM = 0.2; //离散时间间隔
+	const double DELTA_TIEM = 0.1; //离散时间间隔
 	const double COLLISION[2] = { 0.5 , 0.5*0.45}; //碰撞力的损耗（实部和虚部）
 	const double COLLISION_LOSS = 0; //碰撞产生速度削减
 

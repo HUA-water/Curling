@@ -13,7 +13,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	for (double dx = -1.5; dx <= 1.5; dx += 0.1) {
 		for (double angle = -10; angle <= 10; angle += 10) {
 			double oldValue = -INF - 1;
-			for (double vy = 2.6; vy <= 6; vy += vy < 4 ? 0.1 : 1) {
+			for (double vy = 2.6; vy <= 10; vy += vy < 4 ? 0.1 : 1) {
 				Platform platform(gs);
 				platform.AddBall(vy, dx, angle);
 				platform.Run();
