@@ -117,6 +117,7 @@ bool processCommand(char *command)
 		// initialize GameState
 		initGameState(&GameState);
 		sendCommand("READYOK");
+		sendCommand("NAME search");
 	}
 	else if (_stricmp(cmd, "POSITION") == 0) {
 		for (int i = 0; i < 16; i++) {
