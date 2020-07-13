@@ -143,25 +143,23 @@ class Env:
 		self.Start()
 		return self.GetState()
 		
-	def GetReward(self):
-		side = (self.shotNum&1)^1
+	def GetReward(self, side):
 		position = self.GetPosition()
 		#return np.sum(np.linalg.norm(position[side::2]) > 0.1) - np.sum(np.linalg.norm(position[side^1::2]) > 0.1)
 		dist = np.linalg.norm(position - np.array(TEE), axis = 1)
 		distPerSide = [dist[0::2], dist[1::2]]
 		if np.min(distPerSide[side]) < np.min(distPerSide[side^1]):
-			return np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (np.linalg.norm(distPerSide[side]) > 0.1))
+			return np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (np.linalg.norm(position[side::2]) > 0.1))
 		else:
-			return np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(distPerSide[side^1]) > 0.1))
+			return -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(position[side^1::2]) > 0.1))
 		
 		
 		
 	def step(self, action):
-		print(action)
-		self.reward -= self.GetReward()
+		side = self.shotNum&1
 		self.GiveStrategy(action)
-		self.reward += self.GetReward()
-		return self.GetState(), self.reward, self.shotNum==16, ""
+		print(action, side, self.GetReward(side))
+		return self.GetState(), self.GetReward(side), self.shotNum==16, ""
 		
 if __name__ == "__main__":
 	tmp = Env()

@@ -276,20 +276,23 @@ if __name__ == '__main__':
 				# Add exploration noise
 				s_last = env.reset()
 				a = np.array(ddpg[0].choose_action(s_last))
+				r_last = 0
 				#print(a)
 				a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
-				s, _, _, _ = env.step(a)
+				s, r, _, _ = env.step(a)
 				a_last = a
 				for k in range(1,16):
 					a = np.array(ddpg[k&1].choose_action(s))
 					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
-					s_next, reward, done, info = env.step(a)
-					ddpg[(k&1)^1].store_transition(s_last, a_last, -reward, s_next)
-					print(a_last, reward, s_last)
+					s_next, r_next, done, info = env.step(a)
+					ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next, s_next)
+					print(a_last, r_last-r_next, s_last)
 					s_last = s
 					s = s_next
+					r_last = r
+					r = r_next
 					a_last = a
-				ddpg[1].store_transition(s_last, a_last, reward, s_next)
+				ddpg[1].store_transition(s_last, a_last, r + r_last, s_next)
 
 				for i in [0,1]:
 					if ddpg[i].pointer > BATCH_SIZE:
