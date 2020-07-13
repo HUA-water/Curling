@@ -147,14 +147,12 @@ class Env:
 		side = (self.shotNum&1)^1
 		position = self.GetPosition()
 		#return np.sum(np.linalg.norm(position[side::2]) > 0.1) - np.sum(np.linalg.norm(position[side^1::2]) > 0.1)
-		if np.sum(np.linalg.norm(position) > 0.1) == 0:
-			return 0
 		dist = np.linalg.norm(position - np.array(TEE), axis = 1)
 		distPerSide = [dist[0::2], dist[1::2]]
 		if np.min(distPerSide[side]) < np.min(distPerSide[side^1]):
-			return np.sum(distPerSide[side] < np.min(distPerSide[side^1]))
+			return np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (np.linalg.norm(distPerSide[side]) > 0.1))
 		else:
-			return np.sum(distPerSide[side^1] < np.min(distPerSide[side]))
+			return np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(distPerSide[side^1]) > 0.1))
 		
 		
 		
