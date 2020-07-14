@@ -44,8 +44,8 @@ args = parser.parse_args()
 ENV_NAME = 'Pendulum-v0'	# environment name
 RANDOMSEED = 1			  # random seed
 
-LR_A = 0.001				# learning rate for actor
-LR_C = 0.002				# learning rate for critic
+LR_A = 0.0001				# learning rate for actor
+LR_C = 0.0002				# learning rate for critic
 GAMMA = 0.9				 # reward discount
 TAU = 0.01				  # soft replacement
 MEMORY_CAPACITY = 10000	 # size of replay buffer
@@ -285,14 +285,14 @@ if __name__ == '__main__':
 					a = np.array(ddpg[k&1].choose_action(s))
 					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
 					s_next, r_next, done, info = env.step(a)
-					ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next, s_next)
+					ddpg[(k&1)^1].store_transition(s_last, a_last, (r_last-r_next)*(100 if k==15 else 1), s_next)
 					print(a_last, r_last-r_next, s_last)
 					s_last = s
 					s = s_next
 					r_last = r
 					r = r_next
 					a_last = a
-				ddpg[1].store_transition(s_last, a_last, r + r_last, s_next)
+				ddpg[1].store_transition(s_last, a_last, (r + r_last)*100, s_next)
 
 				for i in [0,1]:
 					if ddpg[i].pointer > BATCH_SIZE:

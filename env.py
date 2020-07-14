@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import socket 
-import _thread
+import threading
 import time
 import pyautogui
 import gym
@@ -31,9 +31,10 @@ class Player:
 		self.angular_velocity = -1
 		self.go = False
 		self.score = -1
-		self.getNewState = False
+		self.getNewState = True
 		
-		self.thread = _thread.start_new_thread(self.receive, ())
+		self.thread = threading.Thread(target=self.receive, args=())
+		self.thread.start()
 		
 	def receive(self):
 		while True:
@@ -81,6 +82,8 @@ class Player:
 class Env:
 	observation_space = gym.spaces.box.Box(np.array([0] + [0]*32), np.array([15] + [(4.75 if (i&1)==0 else 11) for i in range(32)]))
 	action_space = gym.spaces.box.Box(np.array([2.5, -2.23, -10]), np.array([10, 2.23, 10]))
+	def __init__(self):
+		self.player = []
 	def Start(self):
 		self.shotNum = 0
 		self.reward = 0
@@ -92,8 +95,10 @@ class Env:
 		pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
 		time.sleep(0.3)
 		pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+		time.sleep(0.3)
+		pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
 		
-		time.sleep(1)
+		time.sleep(1.5)
 		
 		#连接两个AI
 		self.player = [Player("First")]
@@ -108,12 +113,16 @@ class Env:
 			pyautogui.moveTo(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
 			time.sleep(1)
 		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
+		time.sleep(0.3)
+		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
 		
 		time.sleep(0.3)
 		
 		if SLOW_MODE:
 			pyautogui.moveTo(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
 			time.sleep(1)
+		pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
+		time.sleep(0.3)
 		pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
 	
 	def GiveStrategy(self, shot, sweep = 0):
@@ -122,9 +131,15 @@ class Env:
 		self.shotNum += 1
 	
 	def End(self):
+		if self.player:
+			self.player[0].thread.join(1)
+			self.player[1].thread.join(1)
+			
 		if SLOW_MODE:
 			pyautogui.moveTo(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 			time.sleep(1)
+		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
+		time.sleep(0.3)
 		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 	
 	def GetPosition(self):
