@@ -42,19 +42,20 @@ args = parser.parse_args()
 #####################  hyper parameters  ####################
 
 ENV_NAME = 'Pendulum-v0'	# environment name
-RANDOMSEED = 1			  # random seed
+RANDOMSEED = int(time.time())			  # random seed
 
-LR_A = 0.0001				# learning rate for actor
-LR_C = 0.0002				# learning rate for critic
+LR_A = 0.002				# learning rate for actor
+LR_C = 0.004				# learning rate for critic
 GAMMA = 0.9				 # reward discount
 TAU = 0.01				  # soft replacement
 MEMORY_CAPACITY = 10000	 # size of replay buffer
 BATCH_SIZE = 16			 # update batchsize
 
-MAX_EPISODES = 200		  # total number of episodes for training
-MAX_EP_STEPS = 4		  # total number of steps for each episode
+MAX_EPISODES = 2000		  # total number of episodes for training
+MAX_EP_STEPS = 2		  # total number of steps for each episode
 TEST_PER_EPISODES = 10	  # test the model per episodes
-VAR = 1					 # control exploration
+VAR = 3					 # control exploration
+ACTION_RANDOM_RATE = 1
 
 ###############################  DDPG  ####################################
 
@@ -278,21 +279,23 @@ if __name__ == '__main__':
 				a = np.array(ddpg[0].choose_action(s_last))
 				r_last = 0
 				#print(a)
-				a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
+				if np.random.randint(ACTION_RANDOM_RATE) == 0:
+					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
 				s, r, _, _ = env.step(a)
 				a_last = a
 				for k in range(1,16):
 					a = np.array(ddpg[k&1].choose_action(s))
-					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
+					if np.random.randint(ACTION_RANDOM_RATE) == 0:
+						a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
 					s_next, r_next, done, info = env.step(a)
-					ddpg[(k&1)^1].store_transition(s_last, a_last, (r_last-r_next)*(100 if k==15 else 1), s_next)
+					ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next, s_next)
 					print(a_last, r_last-r_next, s_last)
 					s_last = s
 					s = s_next
 					r_last = r
 					r = r_next
 					a_last = a
-				ddpg[1].store_transition(s_last, a_last, (r + r_last)*100, s_next)
+				ddpg[1].store_transition(s_last, a_last, r + r_last, s_next)
 
 				for i in [0,1]:
 					if ddpg[i].pointer > BATCH_SIZE:

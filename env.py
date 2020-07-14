@@ -68,12 +68,13 @@ class Player:
 				self.go = True
 			if messageList[0]=="SCORE":
 				self.score = int(messageList[1])
+				break
 			if messageList[0]=="GAMEOVER":
 				break
 				
 	def sendStrategy(self, shot, sweep = 0):
 		self.sweep = sweep
-		while (self.go == 0):
+		while (self.go == False):
 			time.sleep(0.5)
 		self.Socker.send(bytes("BESTSHOT " + list_to_str(shot), encoding="utf-8"))
 		self.go = False
@@ -102,10 +103,11 @@ class Env:
 		
 		#连接两个AI
 		self.player = [Player("First")]
+		time.sleep(0.3)
 		if SLOW_MODE:
 			time.sleep(1)
 		self.player.append(Player("Second"))
-		time.sleep(0.3)
+		time.sleep(0.5)
 		
 		
 		#单击准备、开始对局
@@ -132,14 +134,14 @@ class Env:
 	
 	def End(self):
 		if self.player:
-			self.player[0].thread.join(1)
-			self.player[1].thread.join(1)
+			self.player[0].thread.join(0.1)
+			self.player[1].thread.join(0.1)
 			
 		if SLOW_MODE:
 			pyautogui.moveTo(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 			time.sleep(1)
 		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
-		time.sleep(0.3)
+		time.sleep(0.7)
 		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 	
 	def GetPosition(self):
@@ -163,11 +165,14 @@ class Env:
 		#return np.sum(np.linalg.norm(position[side::2]) > 0.1) - np.sum(np.linalg.norm(position[side^1::2]) > 0.1)
 		dist = np.linalg.norm(position - np.array(TEE), axis = 1)
 		distPerSide = [dist[0::2], dist[1::2]]
+		res = 0
 		if np.min(distPerSide[side]) < np.min(distPerSide[side^1]):
-			return np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (np.linalg.norm(position[side::2]) > 0.1))
+			res = np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (np.linalg.norm(position[side::2]) > 0.1))
 		else:
-			return -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(position[side^1::2]) > 0.1))
+			res = -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(position[side^1::2]) > 0.1))
 		
+		res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))/2
+		return res
 		
 		
 	def step(self, action):
