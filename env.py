@@ -117,6 +117,8 @@ class Env:
 		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
 		time.sleep(0.3)
 		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
+		time.sleep(0.3)
+		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
 		
 		time.sleep(0.3)
 		
@@ -143,17 +145,27 @@ class Env:
 		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 		time.sleep(0.7)
 		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
+		time.sleep(0.5)
+		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 	
 	def GetPosition(self):
 		side = self.shotNum&1^1
+		count = 0
 		while self.player[side].getNewState == False:
+			count+=1
+			if count > 300:
+				self.reset()
+				count = 0
 			time.sleep(0.1)
 		position = self.player[side].state
 		return position
 	
 	def GetState(self):
 		state = np.array(self.GetPosition()).ravel()
-		return np.insert(state, 0, self.shotNum)
+		state = np.insert(state, 0, self.shotNum)
+		#print(state)
+		state /= np.array(self.observation_space.high)
+		return state
 	
 	def reset(self):
 		self.End()
@@ -171,14 +183,15 @@ class Env:
 		else:
 			res = -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(position[side^1::2]) > 0.1))
 		
-		res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))/2
+		#res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))
+		res += (np.sum(distPerSide[side^1]) * (side == 1) - np.sum(distPerSide[side]) * (side == 0))
 		return res
 		
 		
 	def step(self, action):
 		side = self.shotNum&1
 		self.GiveStrategy(action)
-		print(action, side, self.GetReward(side))
+		#print(action, side, self.GetReward(side))
 		return self.GetState(), self.GetReward(side), self.shotNum==16, ""
 		
 if __name__ == "__main__":

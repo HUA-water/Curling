@@ -54,8 +54,8 @@ BATCH_SIZE = 16			 # update batchsize
 MAX_EPISODES = 2000		  # total number of episodes for training
 MAX_EP_STEPS = 2		  # total number of steps for each episode
 TEST_PER_EPISODES = 10	  # test the model per episodes
-VAR = 3					 # control exploration
-ACTION_RANDOM_RATE = 1
+VAR = [1, 0.5, 3]				 # control exploration
+ACTION_RANDOM_RATE = 2
 
 ###############################  DDPG  ####################################
 
@@ -83,7 +83,7 @@ class DDPG(object):
 			:return: act
 			"""
 			inputs = tl.layers.Input(input_state_shape, name='A_input')
-			x = tl.layers.Dense(n_units=40, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l1')(inputs)
+			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l1')(inputs)
 			x = tl.layers.Dense(n_units=40, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l2')(x)
 			x = tl.layers.Dense(n_units=a_dim, act=tf.nn.tanh, W_init=W_init, b_init=b_init, name='A_a')(x)
 			x = tl.layers.Lambda(lambda x: np.array(a_bound) * x + np.array(a_mean))(x)			#注意这里，先用tanh把范围限定在[-1,1]之间，再进行映射
@@ -101,7 +101,7 @@ class DDPG(object):
 			s = tl.layers.Input(input_state_shape, name='C_s_input')
 			a = tl.layers.Input(input_action_shape, name='C_a_input')
 			x = tl.layers.Concat(1)([s, a])
-			x = tl.layers.Dense(n_units=60, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l1')(x)
+			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l1')(x)
 			x = tl.layers.Dense(n_units=60, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l2')(x)
 			x = tl.layers.Dense(n_units=1, W_init=W_init, b_init=b_init, name='C_out')(x)
 			return tl.models.Model(inputs=[s, a], outputs=x, name='Critic' + name)
@@ -266,7 +266,7 @@ if __name__ == '__main__':
 	ddpg = [DDPG(a_dim, s_dim, a_bound, a_mean, '0'), DDPG(a_dim, s_dim, a_bound, a_mean, '1')]
 
 	for i in range(len(ddpg)):
-		ddpg[i].load_ckpt('model_' + str(i))
+		#ddpg[i].load_ckpt('DDPG_' + str(i))
 		pass
 		
 	#训练部分：
@@ -286,6 +286,8 @@ if __name__ == '__main__':
 				for k in range(1,16):
 					a = np.array(ddpg[k&1].choose_action(s))
 					if np.random.randint(ACTION_RANDOM_RATE) == 0:
+						if k&1:
+							a = [3, 0, 0]
 						a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high)  
 					s_next, r_next, done, info = env.step(a)
 					ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next, s_next)
@@ -299,9 +301,9 @@ if __name__ == '__main__':
 
 				for i in [0,1]:
 					if ddpg[i].pointer > BATCH_SIZE:
-						for j in range(100):
+						for j in range(300):
 							ddpg[i].learn()
 
 			print('\nRunning time: ', time.time() - t0)
 			for i in range(len(ddpg)):
-				ddpg[i].save_ckpt('model_' + str(i))
+				ddpg[i].save_ckpt('DDPG_' + str(i))
