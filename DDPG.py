@@ -224,7 +224,7 @@ class DDPG(object):
 		:return: None
 		"""
 		# 整理s，s_,方便直接输入网络计算
-		print(self.name, s, a, r, s_)
+		#print(self.name, s, a, r, s_)
 		s = s.astype(np.float32)
 		s_ = s_.astype(np.float32)
 
@@ -296,7 +296,7 @@ if __name__ == '__main__':
 		for j in range(MAX_EP_STEPS):
 			t0 = time.time()		#统计时间
 			Test = j == 0			#测试模式
-			#初始状态及局面估价
+			#初始状态及局面估价，对先手而言的局面估价与对后手而言的局面估价相反
 			record = [[env.reset(), env.GetReward(1), (0,0,0)]]
 			for k in range(0,16):
 				#获取动作
@@ -311,7 +311,7 @@ if __name__ == '__main__':
 			for k in range(1,16):
 				ddpg[(k&1)^1].store_transition(record[k-1][0], record[k][2], -(record[k+1][1] - record[k-1][1]) + env.GetAdditionReward(record[k][2]), record[k+1][0])
 				
-			ddpg[1].store_transition(record[15][0], record[16][2], -(record[16][1] - record[15][1]) + env.GetAdditionReward(record[16][2]), record[16][0])
+			ddpg[1].store_transition(record[15][0], record[16][2], record[16][1] + record[15][1] + env.GetAdditionReward(record[16][2]), record[16][0])
 			
 			if Test:
 				rewardList.append([env.GetReward(0), env.GetReward(1)])
