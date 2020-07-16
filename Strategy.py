@@ -1,22 +1,4 @@
-# 与大本营中心距离
-def get_dist(x, y):
-    return (x-2.375)**2+(y-4.88)**2
-
-
-# 大本营内是否有球
-def is_in_house(x, y):
-    House_R = 1.830
-    Stone_R = 0.145
-    if get_dist(x, y) < (House_R+Stone_R)**2:
-        return 1
-    else:
-        return 0
-
-
-def list_to_str(list_):
-    tmp = str(list_)[1:-1].replace(',', '')
-    res = "BESTSHOT "+tmp
-    return res
+from Throw import Throw
 
 
 class Curling:
@@ -35,11 +17,22 @@ class Curling:
         defend: 自由防守区的防守球
         """
 
+    def get_dist(self):
+        return (self.x - 2.375) ** 2 + (self.y - 4.88) ** 2
+
+    def definite_dist(self, x, y):
+        return (self.x - x) ** 2 + (self.y - y) ** 2
+
     def __lt__(self, other):
-        return get_dist(self.x, self.y) < get_dist(other.x, other.y)
+        return self.get_dist() < other.get_dist()
 
     def is_in_house(self):
-        return is_in_house(self.x, self.y)
+        House_R = 1.870
+        Stone_R = 0.145
+        if self.get_dist() < (House_R + Stone_R) ** 2:
+            return 1
+        else:
+            return 0
 
     def is_mine(self):
         return self.my
@@ -79,7 +72,10 @@ class Parser:         # 场景解析
             if curling.is_in_house():
                 curling.mark('non_score')          # 大本营内先统一标注为未得分球
             else:
-                curling.mark('defend')
+                if 3 > curling.x > 1.75:
+                    curling.mark('defend')
+                else:
+                    curling.mark('non_defend')
 
         self.curlings = curlings
 
@@ -117,78 +113,140 @@ class Parser:         # 场景解析
                     enemy_curlings[curling.marker] = 1
         return my_curlings, enemy_curlings
 
-    def find_curling(self, my_flag, marker):
+    def find_curlings(self, my_flag, marker=None):       # 找到符合要求的curling(按距离排好)
+        curlings = []
+        if marker:
+            if type(marker) != list:
+                marker = [marker]
+
         for curling in self.curlings:
-            if curling.is_mine() == my_flag and marker == curling.marker:
-                return curling
+            if marker:
+                if curling.is_mine() == my_flag:
+                    curlings.append(curling)
+            else:
+                if curling.is_mine() == my_flag and curling.marker in marker:
+                    curlings.append(curling)
 
-        return None
+        return curlings
 
-    def have_defend(self, curling):
+    def have_defend(self, curling):          # 检测某冰壶是否有防守冰壶
         for other_curling in self.curlings:
             if other_curling.is_in_house():
                 continue
             offset = abs(float(curling.x) - float(other_curling.x))
             if offset < 0.2:
-                print('Current score curling have defend.')
-                return True
+                # print('Current score curling have defend.')
+                return True, other_curling
+        return False, curling
+
+    def have_my_curling(self, x, y, r):    # 对一定范围内进行搜索是否存在自己的冰壶
+        for curling in self.curlings:
+            if curling.definite_dist(x, y) < r**2:
+                if curling.is_mine():
+                    return True
         return False
 
+    def offense_position(self):
+        # 先检测中心是否有我们的壶
+        center_flag = self.have_my_curling(2.375, 4.88, 0.4)
+        if not center_flag:
+            return 2.375, 4.88         # 对中心处进行占位
 
-class Throw:
-    @staticmethod
-    def center():
-        return 3.05, 1.65, -10
+        my_center_curling = self.find_curlings(True)
+        if not my_center_curling:
+            return 2.375, 4.88
 
-    @staticmethod
-    def defense(curling):
-        return 2.45, float(curling.x - 2.375), 0
+        my_center_curling = my_center_curling[0]  # 取最靠近中心的冰壶为基础
+        if not self.have_my_curling(my_center_curling.x + 0.6, my_center_curling.y, 0.4):
+            return my_center_curling.x + 0.6, my_center_curling.y
+        elif not self.have_my_curling(my_center_curling.x - 0.6, my_center_curling.y, 0.4):
+            return my_center_curling.x - 0.6, my_center_curling.y
+        elif not self.have_my_curling(my_center_curling.x + 1.2, my_center_curling.y, 0.4):
+            return my_center_curling.x + 1.2, my_center_curling.y
+        else:
+            return my_center_curling.x - 1.2, my_center_curling.y
 
-    @staticmethod
-    def defense2(curling):
-        return 2.45, float(curling.x - 2.375 + 0.5), 0
-
-    @staticmethod
-    def free_defense_center_1():
-        return 2.5, -0.8, 0
-
-    @staticmethod
-    def free_defense_center_2():
-        return 2.5, 0, 0
-
-    @staticmethod
-    def hit(curling):
-        return float(3.613 - 0.12234 * curling.y + 1), float(curling.x - 2.375), 0
+    def defense_analyze(self, target_x):     # 分析某大本营投掷目标被遮挡的情况
+        defense_direction = [0, 0, 0]    # 0:middle, 1:left, 2:right
+        for other_curling in self.curlings:
+            if other_curling.is_in_house():
+                continue
+            offset = float(target_x) - float(other_curling.x)     # 目标横坐标-冰壶横坐标
+            if abs(offset) < 0.2:
+                # print('Current score curling have defend.')
+                defense_direction[0] += 1
+            elif 0.6 < offset < 0.2:
+                defense_direction[1] += 1
+            elif -0.6 < offset < -0.2:
+                defense_direction[2] += 1
+            else:
+                pass
+        return defense_direction
 
 
 class Decision:
     def __init__(self, parser):
         self.parser = parser
+        self.decision = None
+        self.parser.base_parse()
+        self.current_score = self.parser.score()
 
-    def raw_decide(self):
-        curlings = self.parser.base_parse()
-        if not curlings:
-            v = 3.05
-            h_x = 1.65
-            w = -10
+    def decide_w(self, target_x):     # 利用目标横坐标决定投掷时左旋还是右旋
+        defense_direction = self.parser.defense_analyze(target_x)
+        if not defense_direction[0]:
+            return 0
+        elif not defense_direction[1]:
+            return 10
+        elif not defense_direction[2]:
+            return -10
+        return 0
+
+    def policy(self):
+        policy_prob = [0, 0, 0, 0]        # 'hit_center', 'hit_defense', 'defense', 'offense'
+        policy = ['hit_center', 'hit_defense', 'defense', 'offense']
+        # 决定hit_center的概率(撞击中心其他冰壶)
+        center_curlings = [0, 0]     # [0]我方 [1]敌方
+        for curling in self.parser.curlings:
+            if curling.get_dist() < 0.8:            # 中心区域
+                if curling.is_mine():
+                    center_curlings[0] += 1
+                else:
+                    center_curlings[1] += 1
+        # 中心区域冰壶比例差值作为prob
+        if sum(center_curlings) != 0:
+            policy_prob[0] = (center_curlings[1] - center_curlings[0]) / float(sum(center_curlings))
+        # 如果是我方得分，禁止撞击
+        if self.current_score != 0:
+            policy_prob[0] = 0
+
+        my_curlings_num, enemy_curlings_num = self.parser.curlings_statistics()
+        # 决定hit_defense的概率
+        base_defense_prob = (5 - my_curlings_num['defend'] - enemy_curlings_num['defend']) / 5
+        policy_prob[1] = 1 - base_defense_prob
+        policy_prob[1] = (2*policy_prob[1] + enemy_curlings_num['score']/2)/3
+
+        # 决定防守defense的概率(占位防守)
+        policy_prob[2] = base_defense_prob
+        if enemy_curlings_num['score'] != 0:
+            policy_prob[2] = 0
         else:
-            if curlings[0].is_mine():  # 中心球属于我方，防守球
-                v = float(3.613 - 0.12234 * curlings[0].y)
-                h_x = float(curlings[0].x - 2.375)
-                w = 0
-            else:       # 撞击球
-                v = float(3.613 - 0.12234 * curlings[0].y + 1)
-                h_x = float(curlings[0].x - 2.375)
-                w = 0
+            policy_prob[2] = policy_prob[2] * my_curlings_num['score']
 
-        bestshot = [v, h_x, w]
-        bestshot = list_to_str(bestshot)
-        return bestshot
+        # 决定进攻offense的概率(占大本营)
+        enemy_num = enemy_curlings_num['score'] + enemy_curlings_num['non_score']
+        my_num = my_curlings_num['score'] + my_curlings_num['non_score']
+
+        general_prob = (enemy_num - my_num) / 5
+        center_prob = 1 - (center_curlings[1] + center_curlings[0]) / 3
+        policy_prob[3] = (general_prob + center_prob) / 2
+
+        print('Policy: ', policy_prob)
+
+        return policy[policy_prob.index(max(policy_prob))]  # 返回策略概率最大的方法
 
     def decide(self):
-        self.parser.base_parse()
-        current_score = self.parser.score()
-        my_curlings_num, enemy_curlings_num = self.parser.curlings_statistics()
+
+        # my_curlings_num, enemy_curlings_num = self.parser.curlings_statistics()
         shotnum = self.parser.current_shotnum
         protect_flag = (shotnum < 5)   # 自由防守区生效flag
         offensive_flag = (shotnum % 2 == 0)   # 先手flag
@@ -216,24 +274,53 @@ class Decision:
             else:
                 v, h_x, w = Throw.center()
 
-        elif enemy_curlings_num['defend'] > my_curlings_num['defend'] and my_curlings_num['non_score'] > 0:
-            target = self.parser.find_curling(False, 'defend')
-            v, h_x, w = Throw.hit(target)
-        elif enemy_curlings_num['score'] > 1:
-            target = self.parser.find_curling(False, 'score')
-            v, h_x, w = Throw.hit(target)
-        elif enemy_curlings_num['non_score'] > 1:
-            target = self.parser.find_curling(False, 'non_score')
-            v, h_x, w = Throw.hit(target)
-        elif current_score[0] != 0:
-            target = self.parser.find_curling(True, 'score')
-            if self.parser.have_defend(target):
-                v, h_x, w = Throw.center()
-            else:
-                v, h_x, w = Throw.defense(target)
         else:
-            v, h_x, w = Throw.center()
+            policy = self.policy()
+            if policy == 'hit_center':     # 击打中心区域冰壶
+                enemy_curlings = self.parser.find_curlings(False, ['score', 'non_score'])
+                if enemy_curlings:
+                    target_curling = enemy_curlings[0]
+                    if self.decide_w(target_curling.x) == 0:
+                        v, h_x, w = Throw.hit(target_curling)
+                    elif self.decide_w(target_curling.x) > 0:
+                        v, h_x, w = Throw.left_hit(target_curling)
+                    elif self.decide_w(target_curling.x) < 0:
+                        v, h_x, w = Throw.right_hit(target_curling)
+                    else:
+                        v, h_x, w = Throw.hit(target_curling)
 
+                else:
+                    v, h_x, w = Throw.center()
+
+            elif policy == 'hit_defense':     # 击打防守冰壶
+                curlings = self.parser.find_curlings(False, 'defend')
+                curlings.extend(self.parser.find_curlings(True, 'defend'))
+
+                if curlings:        # 找到需要打掉的防守壶
+                    v, h_x, w = Throw.center()     # 默认投掷中心防止错误
+                    enemy_curlings = self.parser.find_curlings(False, ['score', 'non_score'])
+                    for enemy_curling in enemy_curlings:
+                        have_defend, defend_curling = self.parser.have_defend(enemy_curling)
+                        if have_defend:
+                            v, h_x, w = Throw.hit(defend_curling)
+                            break
+                else:
+                    v, h_x, w = Throw.center()
+
+            elif policy == 'defense':   # 防守模式
+                curlings = self.parser.find_curlings(True, 'score')
+                if curlings:
+                    v, h_x, w = Throw.defense(curlings[0])
+                else:
+                    v, h_x, w = Throw.center()
+            elif policy == 'offense':   # 进攻（占位）模式
+                x, y = self.parser.offense_position()
+                v, h_x, w = Throw.rotate_throw(x, y, self.decide_w(x))
+            else:
+                v, h_x, w = Throw.center()
+
+        # 整理并返回最终结果
         bestshot = [v, h_x, w]
-        bestshot = list_to_str(bestshot)
-        return bestshot
+        tmp = str(bestshot)[1:-1].replace(',', '')
+        res = "BESTSHOT " + tmp
+        return res
