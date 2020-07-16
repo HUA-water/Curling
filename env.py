@@ -179,12 +179,13 @@ class Env:
 		distPerSide = [dist[0::2], dist[1::2]]
 		res = 0
 		if np.min(distPerSide[side]) < np.min(distPerSide[side^1]):
-			res = np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (np.linalg.norm(position[side::2]) > 0.1))
+			res = np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (distPerSide[side] < 1.975))
 		else:
-			res = -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (np.linalg.norm(position[side^1::2]) > 0.1))
+			res = -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (distPerSide[side^1] < 1.975))
+		res *= 15
 		
-		#res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))
-		res += (np.sum(distPerSide[side^1]) * (side == 1) - np.sum(distPerSide[side]) * (side == 0))
+		res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))
+		#res += (np.sum(distPerSide[side^1]) * (side == 1) - np.sum(distPerSide[side]) * (side == 0))
 		return res
 		
 		
