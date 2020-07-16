@@ -81,7 +81,7 @@ class Player:
 		self.getNewState = False
 	
 class Env:
-	observation_space = gym.spaces.box.Box(np.array([0] + [0]*32), np.array([15] + [(4.75 if (i&1)==0 else 11) for i in range(32)]))
+	observation_space = gym.spaces.box.Box(np.array([0] + [0]*32), np.array([16] + [(4.75 if (i&1)==0 else 11) for i in range(32)]))
 	action_space = gym.spaces.box.Box(np.array([2.5, -2.23, -10]), np.array([10, 2.23, 10]))
 	def __init__(self):
 		self.player = []
@@ -171,7 +171,8 @@ class Env:
 		self.End()
 		self.Start()
 		return self.GetState()
-		
+	
+	#局面估价函数
 	def GetReward(self, side):
 		position = self.GetPosition()
 		#return np.sum(np.linalg.norm(position[side::2]) > 0.1) - np.sum(np.linalg.norm(position[side^1::2]) > 0.1)
@@ -182,11 +183,16 @@ class Env:
 			res = np.sum((distPerSide[side] < np.min(distPerSide[side^1])) * (distPerSide[side] < 1.975))
 		else:
 			res = -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (distPerSide[side^1] < 1.975))
-		res *= 15
+		
+		#如果已经结束
+		if self.shotNum == 16:
+			res *= 30
 		
 		res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))
-		#res += (np.sum(distPerSide[side^1]) * (side == 1) - np.sum(distPerSide[side]) * (side == 0))
 		return res
+	#增加对动作的约束方便收敛
+	def GetAdditionReward(self, action):
+		return -np.abs(action[0]-3) - np.abs(action[2])/10
 		
 		
 	def step(self, action):

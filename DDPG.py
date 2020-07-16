@@ -44,9 +44,9 @@ args = parser.parse_args()
 ENV_NAME = 'Pendulum-v0'	# environment name
 RANDOMSEED = int(time.time())			  # random seed
 
-LR_A = 0.0001				# learning rate for actor
+LR_A = 0.00002				# learning rate for actor
 LR_C = 0.001				# learning rate for critic
-GAMMA = 0.8				 # reward discount
+GAMMA = 0.9				 # reward discount
 TAU = 0.01				  # soft replacement
 MEMORY_CAPACITY = 10000	 # size of replay buffer
 BATCH_SIZE = 16			 # update batchsize
@@ -84,8 +84,8 @@ class DDPG(object):
 			:return: act
 			"""
 			inputs = tl.layers.Input(input_state_shape, name='A_input' + name)
-			x = tl.layers.Dense(n_units=200, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l1' + name)(inputs)
-			#x = tl.layers.Dense(n_units=200, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l2' + name)(x)
+			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l1' + name)(inputs)
+			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l2' + name)(x)
 			x = tl.layers.Dense(n_units=a_dim, act=tf.nn.tanh, W_init=W_init, b_init=b_init, name='A_a' + name)(x)
 			x = tl.layers.Lambda(lambda x: np.array(a_bound) * x + np.array(a_mean))(x)			#注意这里，先用tanh把范围限定在[-1,1]之间，再进行映射
 			return tl.models.Model(inputs=inputs, outputs=x, name='Actor' + name)
@@ -224,6 +224,7 @@ class DDPG(object):
 		:return: None
 		"""
 		# 整理s，s_,方便直接输入网络计算
+		print(self.name, s, a, r, s_)
 		s = s.astype(np.float32)
 		s_ = s_.astype(np.float32)
 
@@ -267,7 +268,7 @@ if __name__ == '__main__':
 	#初始化环境
 	env = env.Env()
 
-	# reproducible，设置随机种子，为了能够重现
+	# reproducible，设置随机种子
 	#env.seed(RANDOMSEED)
 	np.random.seed(RANDOMSEED)
 	#tf.random.set_seed(RANDOMSEED)
@@ -280,12 +281,13 @@ if __name__ == '__main__':
 
 	#用DDPG算法，先后手两个智能体
 	ddpg = [DDPG(a_dim, s_dim, a_bound, a_mean, '0'), DDPG(a_dim, s_dim, a_bound, a_mean, '1')]
-
+	
+	#保存和读取模型
 	for i in range(len(ddpg)):
-		#ddpg[i].save_ckpt('DDPG2_' + str(i))
+		ddpg[i].save_ckpt('DDPG_' + str(i))
 		pass
 	for i in range(len(ddpg)):
-		ddpg[i].load_ckpt('DDPG2_' + str(i))
+		ddpg[i].load_ckpt('DDPG_' + str(i))
 		pass
 		
 	#训练部分：
@@ -293,49 +295,36 @@ if __name__ == '__main__':
 	for i in range(MAX_EPISODES):
 		for j in range(MAX_EP_STEPS):
 			t0 = time.time()		#统计时间
-			Test = j == 0
-			s_last = env.reset()
-			a = np.array(ddpg[0].choose_action(s_last))
-			r_last = env.GetReward(1)
-			#print(a)
-			if np.random.randint(ACTION_RANDOM_RATE) == 0 and Test == False:
-				a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 
-			s, r, _, _ = env.step(a)
-			a_last = a
-			totalReward = [0,0]
-			for k in range(1,16):
-				a = np.array(ddpg[k&1].choose_action(s))
+			Test = j == 0			#测试模式
+			#初始状态及局面估价
+			record = [[env.reset(), env.GetReward(1), (0,0,0)]]
+			for k in range(0,16):
+				#获取动作
+				a = np.array(ddpg[k&1].choose_action(record[-1][0]))
+				#引入噪声
 				if np.random.randint(ACTION_RANDOM_RATE) == 0 and Test == False:
 					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 
-				if k&1:
-					#a = [0.1, np.random.random()*4-2, 0]
-					pass
-				s_next, r_next, done, info = env.step(a)
-				adr = -np.abs(a_last[0]-3) - np.abs(a_last[2])/10
-				totalReward[(k&1)^1] += adr
-				ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next + adr, s_next)
-				#if (((k&1)^1) == 0):
-				print(((k&1)^1), a_last, r_last-r_next + adr, np.array(ddpg[(k&1)^1].get_value(s_last, a_last)))
-				s_last = s
-				s = s_next
-				r_last = r
-				r = r_next
-				a_last = a
-			adr = -np.abs(a_last[0]-3) - np.abs(a_last[2])/10 
-			totalReward[1] += adr
-			ddpg[1].store_transition(s_last, a_last, r + r_last + adr, s_next)
-			#print(16, a_last, r + r_last + adr)
+				#执行动作，获得接下来的状态和局面估价
+				s, r, done, info = env.step(a)
+				record.append([s, r, a])
+			#存入记忆
+			for k in range(1,16):
+				ddpg[(k&1)^1].store_transition(record[k-1][0], record[k][2], -(record[k+1][1] - record[k-1][1]) + env.GetAdditionReward(record[k][2]), record[k+1][0])
+				
+			ddpg[1].store_transition(record[15][0], record[16][2], -(record[16][1] - record[15][1]) + env.GetAdditionReward(record[16][2]), record[16][0])
+			
 			if Test:
-				rewardList.append(env.GetReward(0))
+				rewardList.append([env.GetReward(0), env.GetReward(1)])
 				print("======\n", np.array(rewardList), "\n======")
 				#rewardList.append(totalReward)
 				#print(np.array(totalReward))
-
+			
+			#学习
 			for id in [0, 1]:
 				if ddpg[id].pointer > BATCH_SIZE:
-					for t in range(500):
+					for t in range(800):
 						ddpg[id].learn()
 
 			print('\n', i, j, ' Running time: ', time.time() - t0)
 			for id in range(len(ddpg)):
-				ddpg[id].save_ckpt('DDPG2_' + str(id))
+				ddpg[id].save_ckpt('DDPG_' + str(id))

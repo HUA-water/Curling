@@ -26,15 +26,15 @@ tf.disable_v2_behavior()
 #####################  hyper parameters  ####################
 
 MAX_EPISODES = 200
-MAX_EP_STEPS = 3
-VAR = [5, 1, 3]				 # control exploration
+MAX_EP_STEPS = 4
+VAR = [1, 1, 3]				 # control exploration
 ACTION_RANDOM_RATE = 2
-LR_A = 0.001	# learning rate for actor
-LR_C = 0.002	# learning rate for critic
+LR_A = 0.01	# learning rate for actor
+LR_C = 0.02	# learning rate for critic
 GAMMA = 0.9	 # reward discount
 TAU = 0.005	  # soft replacement
 MEMORY_CAPACITY = 10000
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 
 RENDER = False
 ENV_NAME = 'Pendulum-v0'
@@ -168,7 +168,7 @@ if __name__ == '__main__':
 	ddpg = [DDPG(a_dim, s_dim, a_bound, a_mean, '0'), DDPG(a_dim, s_dim, a_bound, a_mean, '1')]
 
 	for i in range(len(ddpg)):
-		#ddpg[i].save_ckpt('DDPG2_' + str(i))
+		ddpg[i].save_ckpt('DDPG2_' + str(i))
 		pass
 	for i in range(len(ddpg)):
 		ddpg[i].load_ckpt('DDPG2_' + str(i))
@@ -180,37 +180,50 @@ if __name__ == '__main__':
 		for j in range(MAX_EP_STEPS):
 			t0 = time.time()		#统计时间
 			Test = j == 0
-			s_last = env.reset()
+			#s_last = env.reset()
+			s_last = np.random.random(s_dim)
+			s_last[0] = 0
 			a = np.array(ddpg[0].choose_action(s_last))
 			r_last = 0
+			#r_last = env.GetReward(1)
 			#print(a)
 			if np.random.randint(ACTION_RANDOM_RATE) == 0 and Test == False:
 				a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 
-			s, r, _, _ = env.step(a)
+			#s, r, _, _ = env.step(a)
+			s = np.random.random(s_dim)
+			s[0] = 1
+			r = 0
 			a_last = a
 			for k in range(1,16):
 				a = np.array(ddpg[k&1].choose_action(s))
-				if k&1:
-					a = [3, np.random.random()*4-2, 0]	
-					pass
 				if np.random.randint(ACTION_RANDOM_RATE) == 0 and Test == False:
-					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 				
-				s_next, r_next, done, info = env.step(a)
-				ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next, s_next)
-				#print(a_last, r_last-r_next, s_last)
+					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 
+				if k&1:
+					#a = [0.1, np.random.random()*4-2, 0]	
+					pass				
+				#s_next, r_next, done, info = env.step(a)
+				s_next = np.random.random(s_dim)
+				s_next[0] = k+1
+				r_next = 0
+				adr = -np.abs(a_last[0]-2.8) - np.abs(a_last[2])/10
+				ddpg[(k&1)^1].store_transition(s_last, a_last, r_last-r_next + adr, s_next)
+				#if (((k&1)^1) == 0):
+				print(k, a_last, r_last-r_next + adr)
 				s_last = s
 				s = s_next
 				r_last = r
 				r = r_next
 				a_last = a
-			ddpg[1].store_transition(s_last, a_last, r + r_last, s_next)
+			adr = -np.abs(a_last[0]-3) - np.abs(a_last[2])/10 
+			ddpg[1].store_transition(s_last, a_last, r + r_last + adr, s_next)
+			print(16, a_last, r + r_last + adr)
 			if Test:
-				rewardList.append(env.GetReward(0))
+				#rewardList.append(env.GetReward(0))
 				print("======\n", rewardList, "\n======")
 
 			for id in [0,1]:
 				if ddpg[id].pointer > BATCH_SIZE:
-					for t in range(100):
+					for t in range(300):
 						ddpg[id].learn()
 
 			print('\n', i, j, ' Running time: ', time.time() - t0)
