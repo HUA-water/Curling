@@ -42,7 +42,7 @@ while True:
         else:
             print("玩家2，首局后手")
     if messageList[0] == "ISREADY":
-        time.sleep(0.5)
+        time.sleep(0.8)
         obj.send(bytes("READYOK", encoding="utf-8"))
         print("send READYOK")
         obj.send(bytes("NAME GMagoAI", encoding="utf-8"))
