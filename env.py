@@ -23,7 +23,7 @@ class Player:
 		self.Socker = socket.socket()
 		self.Socker.connect((host,port))
 		self.name = name
-		self.state = [[0,0]]*16
+		self.state = [[0.,0.]]*16
 		self.x_coordinate = -1
 		self.y_coordinate = -1
 		self.x_velocity = -1
@@ -32,6 +32,8 @@ class Player:
 		self.go = False
 		self.score = -1
 		self.getNewState = True
+		self.order = ""
+		self.working = False
 		
 		self.thread = threading.Thread(target=self.receive, args=())
 		self.thread.start()
@@ -39,12 +41,14 @@ class Player:
 	def receive(self):
 		while True:
 			ret=str(self.Socker.recv(1024), encoding="utf-8")
-			#print(self.name + " recv:" + ret)
+			print(self.name + " recv:" + ret)
 			messageList = ret.split(" ")
 			if messageList[0] == "NAME":
 				self.order = messageList[1]
 			
 			if messageList[0]=="ISREADY":
+				while not self.working:
+					time.sleep(0.1)
 				self.Socker.send(bytes("READYOK", encoding="utf-8"))
 				self.Socker.send(bytes("NAME " + self.name, encoding="utf-8"))
 				
@@ -68,7 +72,7 @@ class Player:
 				self.go = True
 			if messageList[0]=="SCORE":
 				self.score = int(messageList[1])
-				break
+				self.working = False
 			if messageList[0]=="GAMEOVER":
 				break
 				
@@ -80,73 +84,110 @@ class Player:
 		self.go = False
 		self.getNewState = False
 	
+	def is_alive(self):
+		return self.thread.is_alive()
+	
 class Env:
 	observation_space = gym.spaces.box.Box(np.array([0] + [0]*32), np.array([16] + [(4.75 if (i&1)==0 else 11) for i in range(32)]))
 	action_space = gym.spaces.box.Box(np.array([2.6, -2.23, -10]), np.array([10, 2.23, 10]))
-	def __init__(self):
+	def __init__(self, autoGame = False):
 		self.player = []
+		self.autoGame = autoGame
 	def Start(self):
 		self.shotNum = 0
-		self.reward = 0
-		#单击快速模式
-		if SLOW_MODE:
-			pyautogui.moveTo(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+		
+		while len(self.player) == 2 and (self.player[0].is_alive() or self.player[1].is_alive()) and not self.player[0].go and not self.player[1].go:
+			time.sleep(0.1)
+		
+		if self.autoGame:
+			if len(self.player) == 2 and self.player[0].is_alive() and self.player[1].is_alive():
+				self.player[0].order == ""
+				self.player[1].order == ""
+				pass
+			else:
+				
+				#连接两个AI
+				self.player = [Player("First")]
+				time.sleep(0.3)
+				self.player.append(Player("Second"))
+				
+		else:
+			#单击快速模式
+			if SLOW_MODE:
+				pyautogui.moveTo(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+				time.sleep(1)
 			time.sleep(1)
-		time.sleep(1)
-		pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
-		time.sleep(0.3)
-		pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
-		time.sleep(0.3)
-		pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+			pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+			time.sleep(0.3)
+			pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+			time.sleep(0.3)
+			pyautogui.click(CLICK_POSITION[0][0], CLICK_POSITION[0][1])
+			
+			time.sleep(1.5)
+			
+			#连接两个AI
+			self.player = [Player("First")]
+			time.sleep(0.3)
+			if SLOW_MODE:
+				time.sleep(1)
+			self.player.append(Player("Second"))
+			time.sleep(0.5)
+			
+			
+			#单击准备、开始对局
+			if SLOW_MODE:
+				pyautogui.moveTo(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
+				time.sleep(1)
+			pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
+			time.sleep(0.3)
+			pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
+			time.sleep(0.3)
+			pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
+			
+			time.sleep(0.3)
+			
+			if SLOW_MODE:
+				pyautogui.moveTo(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
+				time.sleep(1)
+			pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
+			time.sleep(0.3)
+			pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
 		
-		time.sleep(1.5)
-		
-		#连接两个AI
-		self.player = [Player("First")]
-		time.sleep(0.3)
-		if SLOW_MODE:
-			time.sleep(1)
-		self.player.append(Player("Second"))
-		time.sleep(0.5)
-		
-		
-		#单击准备、开始对局
-		if SLOW_MODE:
-			pyautogui.moveTo(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
-			time.sleep(1)
-		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
-		time.sleep(0.3)
-		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
-		time.sleep(0.3)
-		pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
-		
-		time.sleep(0.3)
-		
-		if SLOW_MODE:
-			pyautogui.moveTo(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
-			time.sleep(1)
-		pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
-		time.sleep(0.3)
-		pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
+		self.player[0].working = True
+		self.player[1].working = True
 	
 	def GiveStrategy(self, shot, sweep = 0):
-		side = self.shotNum&1
+		while True:
+			if self.player[0].go:
+				side = 0
+				break
+			if self.player[1].go:
+				side = 1
+				break
+			time.sleep(0.1)
 		self.player[side].sendStrategy(shot, sweep)
 		self.shotNum += 1
 	
 	def End(self):
-		if self.player:
-			self.player[0].thread.join(0.1)
-			self.player[1].thread.join(0.1)
-			
-		if SLOW_MODE:
-			pyautogui.moveTo(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
-			time.sleep(1)
-		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
-		time.sleep(0.7)
-		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
-		time.sleep(0.5)
-		pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
+		if (len(self.player) == 2):
+			while self.player[0].working or self.player[1].working:
+				time.sleep(0.1)
+				
+		if self.autoGame:
+			pass
+		else:
+			if self.player:
+				self.player[0].thread.join(0.1)
+				self.player[1].thread.join(0.1)
+		
+			if SLOW_MODE:
+				pyautogui.moveTo(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
+				time.sleep(1)
+			pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
+			time.sleep(0.7)
+			pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
+			time.sleep(0.5)
+			pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 	
 	def GetPosition(self):
 		side = self.shotNum&1^1
@@ -163,7 +204,6 @@ class Env:
 	def GetState(self):
 		state = np.array(self.GetPosition()).ravel()
 		state = np.insert(state, 0, self.shotNum)
-		#print(state)
 		state /= np.array(self.observation_space.high)
 		return state
 	
@@ -185,8 +225,8 @@ class Env:
 			res = -np.sum((distPerSide[side^1] < np.min(distPerSide[side])) * (distPerSide[side^1] < 1.975))
 		
 		#如果已经结束
-		if self.shotNum == 16:
-			res *= 30
+		#if self.shotNum == 16:
+		res *= 30
 		
 		res += (np.sum(distPerSide[side^1]) - np.sum(distPerSide[side]))
 		return res
@@ -202,8 +242,9 @@ class Env:
 		return self.GetState(), self.GetReward(side), self.shotNum==16, ""
 		
 if __name__ == "__main__":
-	tmp = Env()
-	tmp.Start()
-	for i in range(16):
-		tmp.GiveStrategy([3,1,1], 1)
-	tmp.End()
+	tmp = Env(1)
+	for t in range(10):
+		tmp.reset()
+		for i in range(16):
+			tmp.GiveStrategy([10,2.23,10], 1)
+		time.sleep(60)

@@ -46,10 +46,10 @@ RANDOMSEED = int(time.time())			  # random seed
 
 SHOW = True
 LEARN_STEP = 1000
-LR_A = 0.00005				# learning rate for actor
-LR_C = 0.001				# learning rate for critic
-GAMMA = 0.9				 # reward discount
-TAU = 0.9				  # soft replacement
+LR_A = 0.0001				# learning rate for actor
+LR_C = 0.0003				# learning rate for critic
+GAMMA = 0.6				 # reward discount
+TAU = 0.3				  # soft replacement
 MEMORY_CAPACITY = 10000	 # size of replay buffer
 BATCH_SIZE = 32			 # update batchsize
 
@@ -181,7 +181,7 @@ class DDPG(object):
 		loss_c = []
 		loss_a = []
 		for t in range(LEARN_STEP):
-			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=BATCH_SIZE)	#随机BATCH_SIZE个随机数
+			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=min([self.pointer, BATCH_SIZE]))	#随机BATCH_SIZE个随机数
 			#print(indices)
 			bt = self.memory[indices, :]					#根据indices，选取数据bt，相当于随机
 			bs = bt[:, :self.s_dim]						 #从bt获得数据s
@@ -195,10 +195,10 @@ class DDPG(object):
 			with tf.GradientTape() as tape:
 				a_ = self.actor_target(bs_)
 				q_ = self.critic_target([bs_, a_])
-				y = br + GAMMA * q_
+				y = (1-GAMMA) * br + GAMMA * q_
 				q = self.critic([bs, ba])
 				td_error = tf.losses.mean_squared_error(y, q)
-				#for i in range(BATCH_SIZE):
+				#for i in range(len(indices)):
 				#	print(i, np.array(ba[i]), np.array(y[i]), np.array(q[i]), np.array(td_error[i]))
 				#print(np.mean(td_error))
 				loss_c.append(np.mean(td_error))
@@ -206,7 +206,7 @@ class DDPG(object):
 				self.critic_opt.apply_gradients(zip(c_grads, self.critic.trainable_weights))
 
 		for t in range(LEARN_STEP):
-			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=BATCH_SIZE)	#随机BATCH_SIZE个随机数
+			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=min([self.pointer, BATCH_SIZE]))	#随机BATCH_SIZE个随机数
 			#print(indices)
 			bt = self.memory[indices, :]					#根据indices，选取数据bt，相当于随机
 			bs = bt[:, :self.s_dim]						 #从bt获得数据s
@@ -219,7 +219,7 @@ class DDPG(object):
 				a = self.actor(bs)
 				q = self.critic([bs, a])
 				a_loss = -tf.reduce_mean(q)  # 【敲黑板】：注意这里用负号，是梯度上升！也就是离目标会越来越远的，就是越来越大。
-				#for i in range(BATCH_SIZE):
+				#for i in range(len(indices)):
 				#	print(i, np.array(ba[i]), np.array(a[i]), np.array(q[i]), np.array(a_loss))
 				#print()
 				loss_a.append(np.mean(q))
@@ -288,7 +288,7 @@ if __name__ == '__main__':
 		plt.pause(0.1)
 	
 	#初始化环境
-	env = env.Env()
+	env = env.Env(True)
 
 	# reproducible，设置随机种子
 	#env.seed(RANDOMSEED)
@@ -306,7 +306,7 @@ if __name__ == '__main__':
 	
 	#保存和读取模型
 	for i in range(len(ddpg)):
-		ddpg[i].save_ckpt('DDPG_' + str(i))
+		#ddpg[i].save_ckpt('DDPG_' + str(i))
 		pass
 	for i in range(len(ddpg)):
 		ddpg[i].load_ckpt('DDPG_' + str(i))
@@ -331,11 +331,6 @@ if __name__ == '__main__':
 				#执行动作，获得接下来的状态和局面估价
 				s, r, done, info = env.step(a)
 				record.append([s, r, a])
-			#存入记忆
-			for k in range(1,16):
-				ddpg[(k&1)^1].store_transition(record[k-1][0], record[k][2], -(record[k+1][1] - record[k-1][1]) + env.GetAdditionReward(record[k][2]), record[k+1][0])
-				
-			ddpg[1].store_transition(record[15][0], record[16][2], record[16][1] + record[15][1] + env.GetAdditionReward(record[16][2]), record[16][0])
 			
 			if Test:
 				rewardList.append([env.GetReward(0), env.GetReward(1)])
@@ -343,15 +338,22 @@ if __name__ == '__main__':
 				#rewardList.append(totalReward)
 				#print(np.array(totalReward))
 			
-			#学习
-			if SHOW:
-				plt.ion()
-				plt.subplot(4,1,1).cla()
-				plt.subplot(4,1,2).cla()
-				plt.subplot(4,1,3).cla()
-				plt.subplot(4,1,4).cla()
-			for id in [0, 1]:
-				if ddpg[id].pointer > BATCH_SIZE:
+			if not Test:
+				#存入记忆
+				for k in range(1,16):
+					ddpg[(k&1)^1].store_transition(record[k-1][0], record[k][2], -(record[k+1][1] - record[k-1][1]) + env.GetAdditionReward(record[k][2]), record[k+1][0])
+				
+				ddpg[1].store_transition(record[15][0], record[16][2], record[16][1] + record[15][1] + env.GetAdditionReward(record[16][2]), record[16][0])
+				
+				
+				#学习
+				if SHOW:
+					plt.ion()
+					plt.subplot(4,1,1).cla()
+					plt.subplot(4,1,2).cla()
+					plt.subplot(4,1,3).cla()
+					plt.subplot(4,1,4).cla()
+				for id in [0, 1]:
 					loss_c, loss_a = ddpg[id].learn()
 					if SHOW:
 						plt.subplot(4,1,1).plot(loss_c, label = "loss_c_" + str(id))
