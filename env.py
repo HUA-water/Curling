@@ -7,7 +7,7 @@ import gym
 import numpy as np
 
 #快速模式、准备、开始对局、返回主菜单
-CLICK_POSITION = [[700, 575], [1010, 610], [1010, 710], [50, 150]]
+CLICK_POSITION = [[700, 575], [1010, 610], [1010, 710], [30, 150]]
 TEE = [2.375, 4.88]
 SLOW_MODE = 0
 
@@ -82,7 +82,7 @@ class Player:
 	
 class Env:
 	observation_space = gym.spaces.box.Box(np.array([0] + [0]*32), np.array([16] + [(4.75 if (i&1)==0 else 11) for i in range(32)]))
-	action_space = gym.spaces.box.Box(np.array([2.5, -2.23, -10]), np.array([10, 2.23, 10]))
+	action_space = gym.spaces.box.Box(np.array([2.6, -2.23, -10]), np.array([10, 2.23, 10]))
 	def __init__(self):
 		self.player = []
 	def Start(self):

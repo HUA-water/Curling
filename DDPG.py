@@ -44,12 +44,14 @@ args = parser.parse_args()
 ENV_NAME = 'Pendulum-v0'	# environment name
 RANDOMSEED = int(time.time())			  # random seed
 
-LR_A = 0.00002				# learning rate for actor
+SHOW = True
+LEARN_STEP = 1000
+LR_A = 0.00005				# learning rate for actor
 LR_C = 0.001				# learning rate for critic
 GAMMA = 0.9				 # reward discount
-TAU = 0.01				  # soft replacement
+TAU = 0.9				  # soft replacement
 MEMORY_CAPACITY = 10000	 # size of replay buffer
-BATCH_SIZE = 16			 # update batchsize
+BATCH_SIZE = 32			 # update batchsize
 
 MAX_EPISODES = 2000		  # total number of episodes for training
 MAX_EP_STEPS = 5		  # total number of steps for each episode
@@ -71,6 +73,7 @@ class DDPG(object):
 		self.pointer = 0
 		self.a_dim, self.s_dim, self.a_bound, self.a_mean = a_dim, s_dim, a_bound, a_mean
 		self.name = name
+		self.totalLossList = [[], []]
 
 		W_init = tf.random_normal_initializer(mean=0, stddev=0.3)
 		b_init = tf.constant_initializer(0.1)
@@ -84,7 +87,7 @@ class DDPG(object):
 			:return: act
 			"""
 			inputs = tl.layers.Input(input_state_shape, name='A_input' + name)
-			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l1' + name)(inputs)
+			x = tl.layers.Dense(n_units=400, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l1' + name)(inputs)
 			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='A_l2' + name)(x)
 			x = tl.layers.Dense(n_units=a_dim, act=tf.nn.tanh, W_init=W_init, b_init=b_init, name='A_a' + name)(x)
 			x = tl.layers.Lambda(lambda x: np.array(a_bound) * x + np.array(a_mean))(x)			#注意这里，先用tanh把范围限定在[-1,1]之间，再进行映射
@@ -102,8 +105,8 @@ class DDPG(object):
 			s = tl.layers.Input(input_state_shape, name='C_s_input')
 			a = tl.layers.Input(input_action_shape, name='C_a_input')
 			x = tl.layers.Concat(1)([s, a])
-			x = tl.layers.Dense(n_units=50, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l1')(x)
-			x = tl.layers.Dense(n_units=50, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l2')(x)
+			x = tl.layers.Dense(n_units=400, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l1')(x)
+			x = tl.layers.Dense(n_units=100, act=tf.nn.relu, W_init=W_init, b_init=b_init, name='C_l2')(x)
 			x = tl.layers.Dense(n_units=1, W_init=W_init, b_init=b_init, name='C_out')(x)
 			return tl.models.Model(inputs=[s, a], outputs=x, name='Critic' + name)
 
@@ -138,8 +141,6 @@ class DDPG(object):
 		#建立ema，滑动平均值
 		self.ema = tf.train.ExponentialMovingAverage(decay=1 - TAU)  # soft replacement
 
-		self.actor_opt = tf.optimizers.Adam(LR_A)
-		self.critic_opt = tf.optimizers.Adam(LR_C, decay = 1e-9)
 
 
 	def ema_update(self):
@@ -175,42 +176,59 @@ class DDPG(object):
 		Update parameters
 		:return: None
 		"""
-		indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=BATCH_SIZE)	#随机BATCH_SIZE个随机数
-		#print(indices)
-		bt = self.memory[indices, :]					#根据indices，选取数据bt，相当于随机
-		bs = bt[:, :self.s_dim]						 #从bt获得数据s
-		ba = bt[:, self.s_dim:self.s_dim + self.a_dim]  #从bt获得数据a
-		br = bt[:, -self.s_dim - 1:-self.s_dim]		 #从bt获得数据r
-		bs_ = bt[:, -self.s_dim:]					   #从bt获得数据s'
+		self.actor_opt = tf.optimizers.Adam(LR_A, decay = 1e-8)
+		self.critic_opt = tf.optimizers.Adam(LR_C, decay = 1e-8)
+		loss_c = []
+		loss_a = []
+		for t in range(LEARN_STEP):
+			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=BATCH_SIZE)	#随机BATCH_SIZE个随机数
+			#print(indices)
+			bt = self.memory[indices, :]					#根据indices，选取数据bt，相当于随机
+			bs = bt[:, :self.s_dim]						 #从bt获得数据s
+			ba = bt[:, self.s_dim:self.s_dim + self.a_dim]  #从bt获得数据a
+			br = bt[:, -self.s_dim - 1:-self.s_dim]		 #从bt获得数据r
+			bs_ = bt[:, -self.s_dim:]					   #从bt获得数据s'
 
-		# Critic：
-		# Critic更新和DQN很像，不过target不是argmax了，是用critic_target计算出来的。
-		# br + GAMMA * q_
-		with tf.GradientTape() as tape:
-			a_ = self.actor_target(bs_)
-			q_ = self.critic_target([bs_, a_])
-			y = br + GAMMA * q_
-			q = self.critic([bs, ba])
-			td_error = tf.losses.mean_squared_error(y, q)
-			#for i in range(BATCH_SIZE):
-			#	print(i, np.array(ba[i]), np.array(y[i]), np.array(q[i]), np.array(td_error[i]))
-			#print(np.mean(td_error))
-			c_grads = tape.gradient(td_error, self.critic.trainable_weights)
-			self.critic_opt.apply_gradients(zip(c_grads, self.critic.trainable_weights))
+			# Critic：
+			# Critic更新和DQN很像，不过target不是argmax了，是用critic_target计算出来的。
+			# br + GAMMA * q_
+			with tf.GradientTape() as tape:
+				a_ = self.actor_target(bs_)
+				q_ = self.critic_target([bs_, a_])
+				y = br + GAMMA * q_
+				q = self.critic([bs, ba])
+				td_error = tf.losses.mean_squared_error(y, q)
+				#for i in range(BATCH_SIZE):
+				#	print(i, np.array(ba[i]), np.array(y[i]), np.array(q[i]), np.array(td_error[i]))
+				#print(np.mean(td_error))
+				loss_c.append(np.mean(td_error))
+				c_grads = tape.gradient(td_error, self.critic.trainable_weights)
+				self.critic_opt.apply_gradients(zip(c_grads, self.critic.trainable_weights))
 
-		# Actor：
-		# Actor的目标就是获取最多Q值的。
-		with tf.GradientTape() as tape:
-			a = self.actor(bs)
-			q = self.critic([bs, a])
-			a_loss = -tf.reduce_mean(q)  # 【敲黑板】：注意这里用负号，是梯度上升！也就是离目标会越来越远的，就是越来越大。
-			#for i in range(BATCH_SIZE):
-			#	print(i, np.array(ba[i]), np.array(a[i]), np.array(q[i]), np.array(a_loss))
-			#print()
-			a_grads = tape.gradient(a_loss, self.actor.trainable_weights)
-			self.actor_opt.apply_gradients(zip(a_grads, self.actor.trainable_weights))
-
+		for t in range(LEARN_STEP):
+			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=BATCH_SIZE)	#随机BATCH_SIZE个随机数
+			#print(indices)
+			bt = self.memory[indices, :]					#根据indices，选取数据bt，相当于随机
+			bs = bt[:, :self.s_dim]						 #从bt获得数据s
+			ba = bt[:, self.s_dim:self.s_dim + self.a_dim]  #从bt获得数据a
+			br = bt[:, -self.s_dim - 1:-self.s_dim]		 #从bt获得数据r
+			bs_ = bt[:, -self.s_dim:]	
+			# Actor：
+			# Actor的目标就是获取最多Q值的。
+			with tf.GradientTape() as tape:
+				a = self.actor(bs)
+				q = self.critic([bs, a])
+				a_loss = -tf.reduce_mean(q)  # 【敲黑板】：注意这里用负号，是梯度上升！也就是离目标会越来越远的，就是越来越大。
+				#for i in range(BATCH_SIZE):
+				#	print(i, np.array(ba[i]), np.array(a[i]), np.array(q[i]), np.array(a_loss))
+				#print()
+				loss_a.append(np.mean(q))
+				a_grads = tape.gradient(a_loss, self.actor.trainable_weights)
+				self.actor_opt.apply_gradients(zip(a_grads, self.actor.trainable_weights))
 		self.ema_update()
+		self.totalLossList[0].append(np.mean(loss_c))
+		self.totalLossList[1].append(np.mean(loss_a))
+		return loss_c, loss_a
 
 
 	# 保存s，a，r，s_
@@ -264,6 +282,10 @@ class DDPG(object):
 
 
 if __name__ == '__main__':
+	if SHOW:
+		plt.ion()
+		plt.subplot(4,1,1).cla()
+		plt.pause(0.1)
 	
 	#初始化环境
 	env = env.Env()
@@ -301,6 +323,8 @@ if __name__ == '__main__':
 			for k in range(0,16):
 				#获取动作
 				a = np.array(ddpg[k&1].choose_action(record[-1][0]))
+				if Test and (k&1)==1:
+					a = [2.95, np.random.random()*4-2, 0]
 				#引入噪声
 				if np.random.randint(ACTION_RANDOM_RATE) == 0 and Test == False:
 					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 
@@ -320,11 +344,28 @@ if __name__ == '__main__':
 				#print(np.array(totalReward))
 			
 			#学习
+			if SHOW:
+				plt.ion()
+				plt.subplot(4,1,1).cla()
+				plt.subplot(4,1,2).cla()
+				plt.subplot(4,1,3).cla()
+				plt.subplot(4,1,4).cla()
 			for id in [0, 1]:
 				if ddpg[id].pointer > BATCH_SIZE:
-					for t in range(800):
-						ddpg[id].learn()
+					loss_c, loss_a = ddpg[id].learn()
+					if SHOW:
+						plt.subplot(4,1,1).plot(loss_c, label = "loss_c_" + str(id))
+						plt.subplot(4,1,2).plot(loss_a, label = "loss_a_" + str(id))
+						plt.subplot(4,1,3).plot(ddpg[id].totalLossList[0], label = "loss_c_" + str(id))
+						plt.subplot(4,1,4).plot(ddpg[id].totalLossList[1], label = "loss_a_" + str(id))
+						plt.subplot(4,1,1).legend()
+						plt.subplot(4,1,2).legend()
+						plt.subplot(4,1,3).legend()
+						plt.subplot(4,1,4).legend()
+						plt.pause(0.1)
+					
 
 			print('\n', i, j, ' Running time: ', time.time() - t0)
 			for id in range(len(ddpg)):
 				ddpg[id].save_ckpt('DDPG_' + str(id))
+				pass
