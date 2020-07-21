@@ -46,20 +46,21 @@ ENV_NAME = 'Pendulum-v0'	# environment name
 RANDOMSEED = int(time.time())			  # random seed
 
 SHOW = True
-LEARN_STEP = 1000
+LEARN_STEP = 100
 LR_A = 0.0001				# learning rate for actor
-LR_C = 0.0003				# learning rate for critic
+LR_C = 0.001				# learning rate for critic
 GAMMA = 0.6				 # reward discount
 TAU = 0.3				  # soft replacement
 MEMORY_CAPACITY = 10000	 # size of replay buffer
-BATCH_SIZE = 32			 # update batchsize
+BATCH_SIZE = 1			 # update batchsize
 
 MAX_EPISODES = 2000		  # total number of episodes for training
 MAX_EP_STEPS = 4		  # total number of steps for each episode
 TEST_PER_EPISODES = 10	  # test the model per episodes
 VAR = [1, 0.5, 3]				 # control exploration
 #VAR = 1
-ACTION_RANDOM_RATE = 1
+ACTION_RANDOM_RATE = 2
+physical_learn = True
 
 ###############################  DDPG  ####################################
 
@@ -155,13 +156,42 @@ class DDPG(object):
 			i.assign(self.ema.average(j))									   # 用滑动平均赋值
 
 	# 选择动作，把s带进入，输出a
-	def choose_action(self, s):
+	def choose_action(self, s, net = None, train = False):
 		"""
 		Choose action
 		:param s: state
 		:return: act
 		"""
-		return self.actor(np.array([s], dtype=np.float32))[0]
+		#return self.actor(np.array([s], dtype=np.float32))[0]
+		if net == None:
+			net = self.critic
+		valueMax = -1e9
+		a_res = []
+		walkStep = 0 if train else 0
+		s = np.array([s], dtype=np.float32)
+		for vy in np.append(np.arange(2.6, 4., 0.05), np.arange(4., 10., 1)):
+			for dx in np.arange(-1.9, 2, 0.1):
+				for angle in np.arange(-10., 10.1, 10.):
+					a = np.array([[vy, dx, angle]], dtype=np.float32)
+					valueNow = net([s, a])
+					#print(a, valueNow)
+					norm = np.array([0.05, 0.1, 2.])
+					for t in range(walkStep):
+						dir = np.random.random(3)*2-1
+						a_next = a+dir*norm
+						a_next = a_next.astype(np.float32)
+						#print(valueNow, a, a_next)
+						valueTmp = net([s, a_next])
+						if valueTmp > valueNow:
+							valueNow = valueTmp
+							a = a_next
+						norm*=0.8
+					if valueNow>valueMax:
+						valueMax = valueNow
+						a_res = a
+		print(a_res, valueMax)
+		a_res = np.clip(a_res[0], [2.6, -2, -10], [10, 2, 10])
+		return a_res
 	def get_value(self, s, a):
 		"""
 		Choose action
@@ -194,7 +224,8 @@ class DDPG(object):
 			# Critic更新和DQN很像，不过target不是argmax了，是用critic_target计算出来的。
 			# br + GAMMA * q_
 			with tf.GradientTape() as tape:
-				a_ = self.actor_target(bs_)
+				a_ = self.choose_action(bs_[0], self.critic_target, True)
+				a_ = np.array([a_], dtype=np.float32)
 				q_ = self.critic_target([bs_, a_])
 				y = (1-GAMMA) * br + GAMMA * q_
 				q = self.critic([bs, ba])
@@ -206,7 +237,7 @@ class DDPG(object):
 				c_grads = tape.gradient(td_error, self.critic.trainable_weights)
 				self.critic_opt.apply_gradients(zip(c_grads, self.critic.trainable_weights))
 
-		for t in range(LEARN_STEP):
+		for t in range(0):
 			indices = np.random.choice(np.min([self.pointer, MEMORY_CAPACITY]), size=min([self.pointer, BATCH_SIZE]))	#随机BATCH_SIZE个随机数
 			#print(indices)
 			bt = self.memory[indices, :]					#根据indices，选取数据bt，相当于随机
@@ -296,7 +327,7 @@ if __name__ == '__main__':
 		plt.pause(0.1)
 	
 	#初始化环境
-	env = env.Env(True)
+	env = env.Env(False)
 
 	# reproducible，设置随机种子
 	#env.seed(RANDOMSEED)
@@ -314,14 +345,41 @@ if __name__ == '__main__':
 	
 	#保存和读取模型
 	for i in range(len(ddpg)):
-		#ddpg[i].save_ckpt('DDPG_' + str(i))
+		#ddpg[i].save_ckpt('DQN_' + str(i))
 		pass
 	for i in range(len(ddpg)):
-		ddpg[i].load_ckpt('DDPG_' + str(i))
+		ddpg[i].load_ckpt('DQN_' + str(i))
 		pass
-		
+	#s = [0]*33
+	#print(ddpg[0].choose_action(s))
+	#exit(0)
 	#训练部分：
 	rewardList = []
+	
+	if physical_learn:
+		x = tf.keras.Input(33)
+
+		m = tf.keras.layers.Dense(400, activation = 'relu', kernel_initializer = 'random_uniform')(x)
+		m = tf.keras.layers.Dense(400, activation = 'relu', kernel_initializer = 'random_uniform')(m)
+
+		y = tf.keras.layers.Dense(32, kernel_initializer = 'random_uniform')(m)
+
+		physical_model = tf.keras.Model(inputs = x, outputs = y)
+		physical_model.compile(optimizer = tf.keras.optimizers.Adam(lr = 1e-4), loss="mse")
+		physical_memory = [[],[]]
+	def learn_physical_model(t, s_, a, s_next_):
+		s = s_[1:]
+		s_next = s_next_[1:]
+		s_fix = s_next.copy()
+		s_fix[t*2], s_fix[t*2+1] = s_next[30], s_next[31]
+		s_fix[30], s_fix[31] = s_next[t*2], s_next[t*2+1]
+		physical_memory[0] += [list(np.append(s[:30], a))]
+		physical_memory[1] += [list(s_fix)]
+		#print(t, s[:30], a, s_fix, s_next)
+		batch_size = 32
+		if len(physical_memory[0]) > batch_size:
+			physical_model.fit(physical_memory[0], physical_memory[1], epochs = 100, batch_size = batch_size)
+		physical_model.save('physical.h5')
 	for i in range(MAX_EPISODES):
 		for j in range(MAX_EP_STEPS):
 			t0 = time.time()		#统计时间
@@ -338,7 +396,11 @@ if __name__ == '__main__':
 					a = np.clip(np.random.normal(a, VAR), env.action_space.low, env.action_space.high) 
 				#执行动作，获得接下来的状态和局面估价
 				s, r, done, info = env.step(a)
+				print(a,s,r)
+				learn_physical_model(k, record[-1][0], a, s)
+				
 				record.append([s, r, a])
+				print(a, env.GetAdditionReward(a), r)
 			
 			if Test:
 				rewardList.append([env.GetReward(0), env.GetReward(1)])
@@ -377,5 +439,5 @@ if __name__ == '__main__':
 
 			print('\n', i, j, ' Running time: ', time.time() - t0)
 			for id in range(len(ddpg)):
-				ddpg[id].save_ckpt('DDPG_' + str(id))
+				ddpg[id].save_ckpt('DQN_' + str(id))
 				pass

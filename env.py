@@ -33,7 +33,7 @@ class Player:
 		self.score = -1
 		self.getNewState = True
 		self.order = ""
-		self.working = False
+		self.working = True
 		
 		self.thread = threading.Thread(target=self.receive, args=())
 		self.thread.start()
@@ -41,7 +41,9 @@ class Player:
 	def receive(self):
 		while True:
 			ret=str(self.Socker.recv(1024), encoding="utf-8")
-			print(self.name + " recv:" + ret)
+			#print(self.name + " recv:" + ret)
+			if (len(ret)<3):
+				break
 			messageList = ret.split(" ")
 			if messageList[0] == "NAME":
 				self.order = messageList[1]
@@ -58,7 +60,7 @@ class Player:
 				tmp = ret.split(" ")
 				for i in range(16):
 					self.state.append([float(tmp[1 + i*2]), float(tmp[2 + i*2])])
-					self.getNewState = True
+				self.getNewState = True
 				
 			if messageList[0]=="MOTIONINFO":
 				self.x_coordinate = float(messageList[1])
@@ -66,15 +68,16 @@ class Player:
 				self.x_velocity = float(messageList[3])
 				self.y_velocity = float(messageList[4])
 				self.angular_velocity = float(messageList[5])
-				self.Socker.send(bytes("SWEEP " + str(self.sweep),encoding="utf-8"))
+				if self.sweep!=0:
+					self.Socker.send(bytes("SWEEP " + str(self.sweep),encoding="utf-8"))
 				self.sweep = 0
 			if messageList[0]=="GO":
 				self.go = True
 			if messageList[0]=="SCORE":
 				self.score = int(messageList[1])
 				self.working = False
-			if messageList[0]=="GAMEOVER":
-				break
+		self.Socker.close()
+		return 0
 				
 	def sendStrategy(self, shot, sweep = 0):
 		self.sweep = sweep
@@ -93,14 +96,13 @@ class Env:
 	def __init__(self, autoGame = False):
 		self.player = []
 		self.autoGame = autoGame
+		self.round = 0
+		self.first = 1
 	def Start(self):
 		self.shotNum = 0
-		
-		while len(self.player) == 2 and (self.player[0].is_alive() or self.player[1].is_alive()) and not self.player[0].go and not self.player[1].go:
-			time.sleep(0.1)
-		
+
 		if self.autoGame:
-			if len(self.player) == 2 and self.player[0].is_alive() and self.player[1].is_alive():
+			if self.round:
 				self.player[0].order == ""
 				self.player[1].order == ""
 				pass
@@ -110,6 +112,7 @@ class Env:
 				self.player = [Player("First")]
 				time.sleep(0.3)
 				self.player.append(Player("Second"))
+				
 				
 		else:
 			#单击快速模式
@@ -134,17 +137,16 @@ class Env:
 			time.sleep(0.5)
 			
 			
+			
 			#单击准备、开始对局
 			if SLOW_MODE:
 				pyautogui.moveTo(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
 				time.sleep(1)
 			pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
-			time.sleep(0.3)
-			pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
-			time.sleep(0.3)
+			time.sleep(0.7)
 			pyautogui.click(CLICK_POSITION[1][0], CLICK_POSITION[1][1])
 			
-			time.sleep(0.3)
+			time.sleep(0.5)
 			
 			if SLOW_MODE:
 				pyautogui.moveTo(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
@@ -153,6 +155,7 @@ class Env:
 			time.sleep(0.3)
 			pyautogui.click(CLICK_POSITION[2][0], CLICK_POSITION[2][1])
 		
+		self.round = (self.round+1)&3
 		self.player[0].working = True
 		self.player[1].working = True
 	
@@ -165,6 +168,7 @@ class Env:
 				side = 1
 				break
 			time.sleep(0.1)
+		self.first = side ^ (self.shotNum&1)
 		self.player[side].sendStrategy(shot, sweep)
 		self.shotNum += 1
 	
@@ -190,7 +194,7 @@ class Env:
 			pyautogui.click(CLICK_POSITION[3][0], CLICK_POSITION[3][1])
 	
 	def GetPosition(self):
-		side = self.shotNum&1^1
+		side = self.shotNum&1^1^self.first
 		count = 0
 		while self.player[side].getNewState == False:
 			count+=1
@@ -198,23 +202,26 @@ class Env:
 				self.reset()
 				count = 0
 			time.sleep(0.1)
-		position = self.player[side].state
+		position = self.player[side].state.copy()
 		return position
 	
 	def GetState(self):
 		state = np.array(self.GetPosition()).ravel()
 		state = np.insert(state, 0, self.shotNum)
-		state /= np.array(self.observation_space.high)
+		#state /= np.array(self.observation_space.high)
 		return state
 	
 	def reset(self):
 		self.End()
+		if self.autoGame:
+			time.sleep(4)
 		self.Start()
 		return self.GetState()
 	
 	#局面估价函数
-	def GetReward(self, side):
-		position = self.GetPosition()
+	def GetReward(self, side, position = None):
+		if np.any(position == None):
+			position = self.GetPosition()
 		#return np.sum(np.linalg.norm(position[side::2]) > 0.1) - np.sum(np.linalg.norm(position[side^1::2]) > 0.1)
 		dist = np.linalg.norm(position - np.array(TEE), axis = 1)
 		distPerSide = [dist[0::2], dist[1::2]]
@@ -244,7 +251,9 @@ class Env:
 if __name__ == "__main__":
 	tmp = Env(1)
 	for t in range(10):
-		tmp.reset()
-		for i in range(16):
-			tmp.GiveStrategy([10,2.23,10], 1)
-		time.sleep(60)
+		for j in range(4):
+			tmp.reset()
+			for i in range(16):
+				tmp.GiveStrategy([10,2.23,10], 1)
+		#tmp.reset()
+		#input()
