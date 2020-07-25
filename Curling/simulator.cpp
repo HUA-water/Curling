@@ -147,6 +147,12 @@ bool Platform::InHouse(std::complex<double> position) {
 	}
 	return false;
 }
+bool Platform::InHouseLoose(std::complex<double> position) {
+	if (std::abs(position - TEE) < HOUSE_R + STONE_R + 0.1) {
+		return true;
+	}
+	return false;
+}
 bool Platform::OutLoose(std::complex<double> position)
 {
 	if (position.imag() < BACK_LINE + 0.3 || position.real() < 0.2 || position.real() > MAX_POINT[0] - 0.2) {
@@ -163,10 +169,19 @@ bool Platform::InDefendArea(std::complex<double> position) {
 	}
 	return false;
 }
+bool Platform::InDefendAreaLoose(std::complex<double> position) {
+	if (InHouseLoose(position)) {
+		return false;
+	}
+	if (position.imag() > TEE_Y - 0.05 && position.imag() < FRONT_LINE + 0.05) {
+		return true;
+	}
+	return false;
+}
 double Platform::Evaluation(const Platform& const oldPlatform) {
 	int N = Balls.size();
 	//自由防守区规则判断
-	if (N == 1 && !InDefendArea(Balls[0].coordinate)) {
+	if (N == 1 && !InDefendAreaLoose(Balls[0].coordinate)) {
 		return -INF;
 	}
 	if (N <= 5) {
@@ -198,7 +213,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 			for (int j = i - 2; j >= 0; j -= 2) {
 				if (std::abs(Balls[j].coordinate) > eps) {
 					std::complex<double> dist = Balls[i].coordinate - Balls[j].coordinate;
-					tmpSum += max(min(std::abs(dist.real()), 1) * 3, min(std::abs(dist.imag()), 1.5));
+					tmpSum += max(min(std::abs(dist.real()), 1) * 1.5, min(std::abs(dist.imag()), 1.5));
 					tmpCount++;
 				}
 			}
@@ -227,7 +242,6 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		}
 	}
 	minDist[0] += 0.05;
-	if (N == 16) value /= 100;
 
 	//根据离中心最近的壶做判断
 	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;

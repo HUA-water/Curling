@@ -21,7 +21,9 @@ public:
 	void Run();
 	double Evaluation(const Platform& const oldPlatform);
 	bool InDefendArea(std::complex<double> position);
+	bool InDefendAreaLoose(std::complex<double> position);
 	bool InHouse(std::complex<double> position);
+	bool InHouseLoose(std::complex<double> position);
 	bool OutLoose(std::complex<double> position);
 	void modelWork(int input[4], int output[4]);
 

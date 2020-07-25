@@ -12,7 +12,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 
 
 	std::vector <double> DX;
-	for (double dx = -1.5; dx <= 1.5; dx += 0.05) {
+	for (double dx = -1.7; dx <= 1.7; dx += 0.05) {
 		DX.push_back(dx);
 	}
 	int normalNumber = DX.size();
@@ -53,16 +53,19 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					vec_ret->h_x = dx;
 					vec_ret->angle = angle;
 				}
-				/*for (int j = 0; j < platform.Balls.size(); j++) {
-					printf("%d: (%lf, %lf)\n", j, platform.Balls[j].coordinate.real(), platform.Balls[j].coordinate.imag());
-				}*/
-				//printf("%lf %lf %lf : %lf\n\n", vy, dx, angle, tmp);
+				//如果价值高于一定值就输出，用于调试，设置INF表示不输出
+				if (tmp > INF) {
+					for (int j = 0; j < platform.Balls.size(); j++) {
+						printf("%d: (%lf, %lf)\n", j, platform.Balls[j].coordinate.real(), platform.Balls[j].coordinate.imag());
+					}
+					printf("%lf %lf %lf : %lf\n\n", vy, dx, angle, tmp);
+				}
 			}
 		}
 	}
 	
-	double rangeDx = 0.05;
-	double rangeVy = 0.05;
+	double rangeDx = 0.03;
+	double rangeVy = 0.03;
 	double rangeAngle = 6;
 	for (double dx = tmpDx - rangeDx; dx <= tmpDx + rangeDx; dx += 0.01) {
 		for (double vy = tmpVy - rangeVy; vy <= tmpVy + rangeVy; vy += 0.01) {
@@ -79,7 +82,13 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 						vec_ret->h_x = dx;
 						vec_ret->angle = angle;
 					}
-					//printf("%lf %lf %lf : %lf\n", vy, dx, angle, tmp);
+					//如果价值高于一定值就输出，用于调试，设置INF表示不输出
+					if (tmp > INF) {
+						for (int j = 0; j < platform.Balls.size(); j++) {
+							printf("%d: (%lf, %lf)\n", j, platform.Balls[j].coordinate.real(), platform.Balls[j].coordinate.imag());
+						}
+						printf("%lf %lf %lf : %lf\n", vy, dx, angle, tmp);
+					}
 				}
 			}
 		}
