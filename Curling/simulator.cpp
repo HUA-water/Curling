@@ -1,6 +1,7 @@
 #include"simulator.h"
 #include "strategy.h"
 
+
 Platform::Platform(const GAMESTATE* const gs) {
 	Balls.clear();
 	for (int i = 0; i < gs->ShotNum; i++) {
@@ -13,41 +14,95 @@ void Platform::AddBall(double vy, double dx, double angle) {
 	Balls.push_back(Ball(std::complex<double>(START_POINT[0] + dx, START_POINT[1]), std::complex<double>(0, -vy), angle));
 }
 
+void Platform::modelWork(int input[4], int output[4]) {
+	int hidden[8];
+	for (int j = 0; j < 8; j++) {
+		hidden[j] = collisionModel_b0[j];
+	}
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 8; j++) {
+			hidden[j] += collisionModel_W0[i][j] * input[i];
+		}
+	}
+	for (int j = 0; j < 8; j++) {
+		if (hidden[j] < 0) {
+			hidden[j] = 0;
+		}
+	}
+	for (int j = 0; j < 4; j++) {
+		output[j] = collisionModel_b1[j];
+	}
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 4; j++) {
+			output[j] += collisionModel_W1[i][j] * hidden[i];
+		}
+	}
+}
 void Platform::Run() {
 	bool moveFlag;
+	int count[16][16] = {};
+	int round = 0;
 	do {
+		round++;
+		double delta_time = DELTA_TIME;
 		moveFlag = false;
 		int collisionCount = 1;
 		while (collisionCount > 0){
 			collisionCount--;
-			bool collisionFlag = true;
+			bool collisionFlag = false;
 			for (int i = 0; i < Balls.size(); i++){
 				if (std::abs(Balls[i].coordinate) > eps) {
 					for (int j = i + 1; j < Balls.size(); j++) {
-						if (std::abs(Balls[j].coordinate) > eps) {
+						if (std::abs(Balls[j].coordinate) > eps && count[i][j] <= round - 5) {
 							std::complex<double> deltaC = Balls[i].coordinate - Balls[j].coordinate;
 							std::complex<double> deltaV = Balls[i].velocity - Balls[j].velocity;
-							if (std::abs(deltaC + deltaV * DELTA_TIEM) <= 2 * STONE_R) {
-								collisionFlag = false;
+							std::complex<double> tmp = -deltaC * std::conj(deltaV) / std::abs(deltaV);
+							double dist = std::abs(tmp.imag());
+							if (dist < 2 * STONE_R && tmp.real() > -eps) {
+								double time_cost = (tmp.real() - std::sqrt(4*STONE_R*STONE_R - dist * dist)) / std::abs(deltaV);
+								if (std::abs(time_cost) > 0.001) {
+									time_cost -= eps;
+									if (time_cost > 0 && delta_time > time_cost) {
+										delta_time = time_cost;
+									}
+								}else{
+									collisionFlag = true;
+									count[i][j] = round;
+									deltaC /= std::abs(deltaC);
+									std::complex<double> F = std::conj(deltaC) * deltaV;
+									double angleCos = std::abs(F.real()) / std::abs(deltaV);
+									if (std::abs(F.real()) > 2) {
+										F.imag(0);
+										Balls[i].velocity -= F * deltaC;
+										Balls[j].velocity += F * deltaC;
+									}
+									else {
+										F.imag(F.imag() * angleCos);
+										F *= 0.5;
+										Balls[i].velocity -= F * deltaC;
+										Balls[j].velocity += F * deltaC;
+										/*
+										int x = i, y = j;
+										if (std::abs(Balls[x].velocity) < std::abs(Balls[y].velocity)) {
+											std::swap(x, y);
+										}
+										int input[4], output[4];
+										input[0] = Balls[x].velocity.real(); input[1] = Balls[x].velocity.imag();
+										input[2] = Balls[y].velocity.real(); input[3] = Balls[y].velocity.imag();
+										modelWork(input, output);
 
-								deltaC /= std::abs(deltaC);
-								std::complex<double> F = std::conj(deltaC) * deltaV;
-								if (std::abs(F.real()) > 2) {
-									F.imag(0);
-								}
-								else {
-									F.real(F.real() * COLLISION[0]);
-									F.imag(F.imag() * COLLISION[1]);
-								}
+										Balls[x].velocity.real(output[0]); Balls[x].velocity.imag(output[1]);
+										Balls[y].velocity.real(output[2]); Balls[y].velocity.imag(output[3]);
+										*/
+									}
 
-								Balls[i].velocity -= F * deltaC;
-								Balls[j].velocity += F * deltaC;
+								}
 							}
 						}
 					}
 				}
 			}
-			if (collisionFlag) {
+			if (!collisionFlag) {
 				collisionCount = 0;
 			}
 		}
@@ -56,7 +111,7 @@ void Platform::Run() {
 			if (std::abs(Balls[i].coordinate) > eps) {
 				//printf("%lf %lf\n", Balls[i].coordinate.real(), Balls[i].coordinate.imag());
 				Ball &ball = Balls[i];
-				ball.coordinate += Balls[i].velocity * DELTA_TIEM;
+				std::complex<double> _velocity = Balls[i].velocity;
 				if (ball.coordinate.real() < STONE_R || ball.coordinate.real() > MAX_POINT[0] - STONE_R || ball.coordinate.imag() < BACK_LINE - STONE_R || ball.coordinate.imag() > MAX_POINT[1] - STONE_R) {
 					ball.coordinate = ball.velocity = ball.angle = 0;
 				}
@@ -68,18 +123,20 @@ void Platform::Run() {
 
 				if (Abs > MIN_VELOCITY || ball.angle > MIN_ANGLE) {
 					moveFlag = true;
-					ball.velocity -= ball.velocity / Abs * DELTA_TIEM * FRICTION[stage];
-					ball.velocity -= ball.velocity * Abs * AIR_DRAG[stage] * DELTA_TIEM;
+					ball.velocity -= ball.velocity / Abs * delta_time * FRICTION[stage];
+					ball.velocity -= ball.velocity * Abs * AIR_DRAG[stage] * delta_time;
 
-					ball.velocity *= std::pow((1 - VELOCITY_LOSS_ANGLE[stage] * std::abs(ball.angle)), DELTA_TIEM);
-					std::complex<double> Rot = std::pow(std::complex<double>(1, ball.angle * VELOCITY_ANGLE[stage]), DELTA_TIEM);
+					ball.velocity *= std::pow((1 - VELOCITY_LOSS_ANGLE[stage] * std::abs(ball.angle)), delta_time);
+					std::complex<double> Rot = std::pow(std::complex<double>(1, ball.angle * VELOCITY_ANGLE[stage]), delta_time);
 					ball.velocity *= Rot / std::abs(Rot);
-					ball.angle *= std::pow((1 - ANGLE_LOSS[stage]), DELTA_TIEM);
+					ball.angle *= std::pow((1 - ANGLE_LOSS[stage]), delta_time);
 				}
 				else {
 					ball.velocity = 0;
 					ball.angle = 0;
 				}
+				ball.angle += (1 - std::abs(ball.velocity)) * ANGLE_INCRESS_VELOCITY[stage] * delta_time;
+				ball.coordinate += (Balls[i].velocity + _velocity) * 0.5 * delta_time;
 			}
 		}
 	} while (moveFlag);
@@ -109,9 +166,9 @@ bool Platform::InDefendArea(std::complex<double> position) {
 double Platform::Evaluation(const Platform& const oldPlatform) {
 	int N = Balls.size();
 	//自由防守区规则判断
-	/*if (N == 1 && !InDefendArea(Balls[0].coordinate)) {
+	if (N == 1 && !InDefendArea(Balls[0].coordinate)) {
 		return -INF;
-	}*/
+	}
 	if (N <= 5) {
 		for (int i = N - 2; i >= 0; i -= 2) {
 			if (InDefendArea(oldPlatform.Balls[i].coordinate) && OutLoose(Balls[i].coordinate)) {
