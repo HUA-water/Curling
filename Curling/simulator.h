@@ -19,12 +19,13 @@ public:
 	Platform(const GAMESTATE* const gs);
 	void AddBall(double vy, double dx, double angle);
 	void Run();
-	double Evaluation(const Platform& const oldPlatform);
+	double Evaluation(const Platform& const oldPlatform, bool self = true);
 	bool InDefendArea(std::complex<double> position);
 	bool InDefendAreaLoose(std::complex<double> position);
 	bool InHouse(std::complex<double> position);
 	bool InHouseLoose(std::complex<double> position);
 	bool OutLoose(std::complex<double> position);
+	bool OutTight(std::complex<double> position);
 	void modelWork(int input[4], int output[4]);
 
 	const std::complex<double> TEE = std::complex<double>(TEE_X, TEE_Y);

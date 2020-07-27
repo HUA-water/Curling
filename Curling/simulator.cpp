@@ -153,9 +153,16 @@ bool Platform::InHouseLoose(std::complex<double> position) {
 	}
 	return false;
 }
+bool Platform::OutTight(std::complex<double> position)
+{
+	if (position.imag() + STONE_R < BACK_LINE - 0.03 || position.real() < -0.03 || position.real() > MAX_POINT[0] + 0.03) {
+		return true;
+	}
+	return false;
+}
 bool Platform::OutLoose(std::complex<double> position)
 {
-	if (position.imag() < BACK_LINE + 0.3 || position.real() < 0.2 || position.real() > MAX_POINT[0] - 0.2) {
+	if (position.imag() + STONE_R < BACK_LINE + 0.03 || position.real() < 0.03 || position.real() > MAX_POINT[0] - 0.03) {
 		return true;
 	}
 	return false;
@@ -178,7 +185,7 @@ bool Platform::InDefendAreaLoose(std::complex<double> position) {
 	}
 	return false;
 }
-double Platform::Evaluation(const Platform& const oldPlatform) {
+double Platform::Evaluation(const Platform& const oldPlatform, bool self) {
 	int N = Balls.size();
 	//自由防守区规则判断
 	if (N == 1 && !InDefendAreaLoose(Balls[0].coordinate)) {
@@ -186,7 +193,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	}
 	if (N <= 5) {
 		for (int i = N - 2; i >= 0; i -= 2) {
-			if (InDefendArea(oldPlatform.Balls[i].coordinate) && OutLoose(Balls[i].coordinate)) {
+			if (InDefendArea(oldPlatform.Balls[i].coordinate) && ((self && OutLoose(Balls[i].coordinate)) || ((!self) && OutTight(Balls[i].coordinate)))) {
 				return -INF;
 			}
 		}
@@ -206,7 +213,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	//printf("%d\n", N);
 
 	//我方壶尽可能分开
-	double tmpSum = 0;
+	/*double tmpSum = 0;
 	int tmpCount = 0;
 	for (int i = N - 1; i >= 0; i -= 2) {
 		if (std::abs(Balls[i].coordinate) > eps) {
@@ -221,7 +228,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	}
 	if (tmpCount) {
 		value += 2 * tmpSum / tmpCount;
-	}
+	}*/
 
 	double WeightForY = 0.6;
 	//我方冰壶离中心越近越好
@@ -245,9 +252,9 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 	//根据离中心最近的壶做判断
 	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
-	double tmpWeight = 0.5;
+	double tmpWeight = 1;
 	if (N == 16) {
-		tmpWeight = 10000;
+		tmpWeight = 10;
 	}
 	if (minDist[winSide] < HOUSE_R + STONE_R) {
 		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
@@ -261,7 +268,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	//场上对方壶数量越少越好
 	tmpWeight = 0.5;
 	if (N & 1) {
-		tmpWeight = 10000;
+		tmpWeight = 10;
 	}
 	//printf("%d\n", N);
 	for (int i = N - 2; i >= 0; i -= 2) {
