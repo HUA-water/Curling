@@ -10,6 +10,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	int startTime = clock();
 	double maxValue = -INF;
 
+	Platform oldPlatform(gs);
 
 	std::vector <double> DX;
 	for (double dx = -1.7; dx <= 1.7; dx += 0.05) {
@@ -33,12 +34,12 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 				if (angle != 0 && i >= normalNumber) {
 					break;
 				}
-				Platform platform(gs);
+				Platform platform(oldPlatform);
 				platform.AddBall(vy, dx, angle);
 				RecA -= clock();
 				platform.Run();
 				RecA += clock();
-				double tmp = platform.Evaluation(gs);
+				double tmp = platform.Evaluation(oldPlatform);
 				if (tmp == oldValue) {
 					break;
 				}
