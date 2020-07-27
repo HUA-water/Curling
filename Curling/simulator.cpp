@@ -253,6 +253,16 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
 			double dist = std::abs(Balls[i].coordinate - TEE);
 			if (dist < minDist[winSide ^ 1]) {
+				//ÅÐ¶Ï±£»¤Çò
+				for (int j = 0; j < N; j++) {
+					std::complex<double> dist = Balls[j].coordinate - Balls[i].coordinate;
+					if (i!=j && Balls[j].coordinate.imag() > 0 && std::abs(Balls[j].coordinate.real()) < STONE_R) {
+						if (Balls[j].coordinate.imag() < 0.6) {
+							tmpWeight += 0.3;
+						}
+						else tmpWeight += 0.1;
+					}
+				}
 				value += flag * (1 / (dist + 1) + tmpWeight);
 			}
 		}
