@@ -5,6 +5,8 @@ using namespace std;
 
 
 // make your decision here
+const double disturbDx = 0.0001;
+const double disturbAngle = 0.03;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
 	int startTime = clock();
@@ -36,14 +38,23 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 				}
 				Platform platform(oldPlatform);
 				platform.AddBall(vy, dx, angle);
-				RecA -= clock();
 				platform.Run();
-				RecA += clock();
 				double tmp = platform.Evaluation(oldPlatform);
 				if (tmp == oldValue) {
 					break;
 				}
 				oldValue = tmp;
+
+				for (int delta = -1; delta <= 1; delta+=2) {
+					Platform platform(oldPlatform);
+					platform.AddBall(vy, dx + delta * disturbDx, angle + delta * disturbAngle);
+					platform.Run();
+					double value = platform.Evaluation(oldPlatform);
+					if (value < tmp) {
+						tmp = value;
+					}
+				}
+
 				if (tmp > maxValue) {
 					maxValue = tmp;
 
@@ -76,6 +87,15 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					platform.AddBall(vy, dx, angle);
 					platform.Run();
 					double tmp = platform.Evaluation(gs);
+					for (int delta = -1; delta <= 1; delta += 2) {
+						Platform platform(oldPlatform);
+						platform.AddBall(vy, dx + delta * disturbDx, angle + delta * disturbAngle);
+						platform.Run();
+						double value = platform.Evaluation(oldPlatform);
+						if (value < tmp) {
+							tmp = value;
+						}
+					}
 					if (tmp > maxValue) {
 						maxValue = tmp;
 

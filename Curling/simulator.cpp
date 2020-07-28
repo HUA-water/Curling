@@ -123,8 +123,14 @@ void Platform::Run() {
 
 				if (Abs > MIN_VELOCITY || ball.angle > MIN_ANGLE) {
 					moveFlag = true;
-					ball.velocity -= ball.velocity / Abs * delta_time * FRICTION[stage];
-					ball.velocity -= ball.velocity * Abs * AIR_DRAG[stage] * delta_time;
+					if (Abs < delta_time * FRICTION[stage]) {
+						ball.velocity = 0;
+						ball.angle = 0;
+					}
+					else {
+						ball.velocity -= ball.velocity / Abs * delta_time * FRICTION[stage];
+						ball.velocity -= ball.velocity * Abs * AIR_DRAG[stage] * delta_time;
+					}
 
 					ball.velocity *= std::pow((1 - VELOCITY_LOSS_ANGLE[stage] * std::abs(ball.angle)), delta_time);
 					std::complex<double> Rot = std::pow(std::complex<double>(1, ball.angle * VELOCITY_ANGLE[stage]), delta_time);
@@ -243,33 +249,9 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	}
 	minDist[0] += 0.05;
 
-	//根据离中心最近的壶做判断
-	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
-	double tmpWeight = 0.5;
-	if (N == 16) {
-		tmpWeight = 10000;
-	}
-	if (minDist[winSide] < HOUSE_R + STONE_R) {
-		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
-			double dist = std::abs(Balls[i].coordinate - TEE);
-			if (dist < minDist[winSide ^ 1]) {
-				//判断保护球
-				for (int j = 0; j < N; j++) {
-					std::complex<double> dist = Balls[j].coordinate - Balls[i].coordinate;
-					if (i!=j && Balls[j].coordinate.imag() > 0 && std::abs(Balls[j].coordinate.real()) < STONE_R) {
-						if (Balls[j].coordinate.imag() < 0.6) {
-							tmpWeight += 0.3;
-						}
-						else tmpWeight += 0.1;
-					}
-				}
-				value += flag * (1 / (dist + 1) + tmpWeight);
-			}
-		}
-	}
 
 	//场上对方壶数量越少越好
-	tmpWeight = 0.5;
+	double tmpWeight = 0.5;
 	if (N & 1) {
 		tmpWeight = 10000;
 	}
@@ -291,6 +273,33 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		double dist = std::abs(Balls[i].coordinate - TEE);
 		if (dist < HOUSE_R + STONE_R - 0.05) {
 			value += tmpWeight * (1 + 1. / (1 + dist));
+		}
+	}
+
+
+	//根据离中心最近的壶做判断
+	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
+	tmpWeight = 0.5;
+	if (N == 16) {
+		value = 0;
+		tmpWeight = 10000;
+	}
+	if (minDist[winSide] < HOUSE_R + STONE_R) {
+		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
+			double dist = std::abs(Balls[i].coordinate - TEE);
+			if (dist < minDist[winSide ^ 1]) {
+				//判断保护球
+				for (int j = 0; j < N; j++) {
+					std::complex<double> dist = Balls[j].coordinate - Balls[i].coordinate;
+					if (i != j && Balls[j].coordinate.imag() > 0 && std::abs(Balls[j].coordinate.real()) < STONE_R) {
+						if (Balls[j].coordinate.imag() < 0.6) {
+							tmpWeight += 0.3;
+						}
+						else tmpWeight += 0.1;
+					}
+				}
+				value += flag * (1 / (dist + 1) + tmpWeight);
+			}
 		}
 	}
 	return value + record;
