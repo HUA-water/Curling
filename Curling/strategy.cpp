@@ -5,8 +5,8 @@ using namespace std;
 
 
 // make your decision here
-const double disturbDx = 0.0001;
-const double disturbAngle = 0.03;
+const double disturbDx = 0.0003;
+const double disturbAngle = 0.05;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
 	int startTime = clock();
@@ -15,7 +15,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	Platform oldPlatform(gs);
 
 	std::vector <double> DX;
-	for (double dx = -1.7; dx <= 1.7; dx += 0.05) {
+	for (double dx = -1.7; dx <= 1.7; dx += 0.025) {
 		DX.push_back(dx);
 	}
 	int normalNumber = DX.size();
@@ -32,7 +32,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 		double dx = DX[i];
 		for (double angle = -10; angle <= 10; angle += 10) {
 			double oldValue = -INF - 1;
-			for (double vy = 2.6; vy <= 8; vy += vy < 4.5 ? 0.05 : 1) {
+			for (double vy = 2.6; vy <= 8; vy += vy < 4.5 ? 0.025 : 1) {
 				if (angle != 0 && i >= normalNumber) {
 					break;
 				}
@@ -45,15 +45,6 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 				}
 				oldValue = tmp;
 
-				for (int delta = -1; delta <= 1; delta+=2) {
-					Platform platform(oldPlatform);
-					platform.AddBall(vy, dx + delta * disturbDx, angle + delta * disturbAngle);
-					platform.Run();
-					double value = platform.Evaluation(oldPlatform);
-					if (value < tmp) {
-						tmp = value;
-					}
-				}
 
 				if (tmp > maxValue) {
 					maxValue = tmp;
@@ -66,10 +57,10 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					vec_ret->angle = angle;
 				}
 				//如果价值高于一定值就输出，用于调试，设置INF表示不输出
-				if (tmp > INF) {
-					for (int j = 0; j < platform.Balls.size(); j++) {
+				if (tmp > -INF) {
+					/*for (int j = 0; j < platform.Balls.size(); j++) {
 						printf("%d: (%lf, %lf)\n", j, platform.Balls[j].coordinate.real(), platform.Balls[j].coordinate.imag());
-					}
+					}*/
 					printf("%lf %lf %lf : %lf\n\n", vy, dx, angle, tmp);
 				}
 			}
@@ -87,15 +78,6 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					platform.AddBall(vy, dx, angle);
 					platform.Run();
 					double tmp = platform.Evaluation(gs);
-					for (int delta = -1; delta <= 1; delta += 2) {
-						Platform platform(oldPlatform);
-						platform.AddBall(vy, dx + delta * disturbDx, angle + delta * disturbAngle);
-						platform.Run();
-						double value = platform.Evaluation(oldPlatform);
-						if (value < tmp) {
-							tmp = value;
-						}
-					}
 					if (tmp > maxValue) {
 						maxValue = tmp;
 

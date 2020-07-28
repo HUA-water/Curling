@@ -278,10 +278,11 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 
 	//根据离中心最近的壶做判断
-	int winSide = minDist[1] < minDist[0], flag = winSide == 0 ? 1 : -1;
+	int winSide = minDist[1] < minDist[0];
+	int flag = winSide == 0 ? 1 : -1;
 	tmpWeight = 0.5;
 	if (N == 16) {
-		value = 0;
+		value /= 1e5;
 		tmpWeight = 10000;
 	}
 	if (minDist[winSide] < HOUSE_R + STONE_R) {
