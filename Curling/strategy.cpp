@@ -16,8 +16,8 @@ double search(int deep, Platform oldPlatform, SHOTINFO* action = NULL) {
 	SHOTINFO space(0.1, 0.1, 10);
 	SHOTINFO range(2.6, 1.7, 10);
 	if (action == NULL) {
-		space = SHOTINFO(3.5, 1.5, 10);
-		range = SHOTINFO(3, 1.5, 10);
+		space = SHOTINFO(3.5, INF, 10);
+		range = SHOTINFO(3, 0, 10);
 	}
 	if (action != NULL && oldPlatform.Balls.size() == 15) {
 		space = SHOTINFO(0.05, 0.05, 5);
@@ -45,7 +45,7 @@ double search(int deep, Platform oldPlatform, SHOTINFO* action = NULL) {
 	Platform test(oldPlatform);
 	test.AddBall(0,-10,0);
 	test.Run();
-	double valueLeast = test.Evaluation(oldPlatform);
+	double valueLeast = test.Evaluation(oldPlatform, action != NULL);
 
 	for (int i = 0; i < DX.size(); i++) {
 		double dx = DX[i];
@@ -64,7 +64,7 @@ double search(int deep, Platform oldPlatform, SHOTINFO* action = NULL) {
 				Platform platform(oldPlatform);
 				platform.AddBall(vy, dx, angle);
 				platform.Run();
-				double tmp = platform.Evaluation(oldPlatform);
+				double tmp = platform.Evaluation(oldPlatform, action != NULL);
 				if (tmp == valueLeast) break;
 				if (deep) {
 					tmp = tmp * 0.3 - search(deep - 1, platform) * 0.7;
@@ -80,9 +80,9 @@ double search(int deep, Platform oldPlatform, SHOTINFO* action = NULL) {
 				}
 				//如果价值高于一定值就输出，用于调试，设置INF表示不输出
 				if (deep == 1 && tmp > INF) {
-					for (int j = 0; j < platform.Balls.size(); j++) {
+					/*for (int j = 0; j < platform.Balls.size(); j++) {
 						printf("%d: (%lf, %lf)\n", j, platform.Balls[j].coordinate.real(), platform.Balls[j].coordinate.imag());
-					}
+					}*/
 					printf("%d : %lf %lf %lf : %lf\n\n", deep, vy, dx, angle, tmp);
 				}
 			}
