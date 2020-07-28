@@ -1,0 +1,7 @@
+﻿  strategy.cpp
+C:\Users\xiangliangru\Desktop\Curling\Curling\strategy.cpp(13,27): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+C:\Users\xiangliangru\Desktop\Curling\Curling\strategy.cpp(14,23): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+C:\Users\xiangliangru\Desktop\Curling\Curling\strategy.cpp(295,26): warning C4305: “=”: 从“double”到“float”截断
+C:\Users\xiangliangru\Desktop\Curling\Curling\strategy.cpp(327,52): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+C:\Users\xiangliangru\Desktop\Curling\Curling\strategy.cpp(333,52): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+  Curling.vcxproj -> C:\Users\xiangliangru\Desktop\Curling\x64\Debug\Curling.exe
