@@ -247,7 +247,6 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 			}
 		}
 	}
-	minDist[0] += 0.05;
 
 
 	//场上对方壶数量越少越好
@@ -278,6 +277,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 
 	//根据离中心最近的壶做判断
+	minDist[0] += 0.1;
 	int winSide = minDist[1] < minDist[0];
 	int flag = winSide == 0 ? 1 : -1;
 	tmpWeight = 0.5;

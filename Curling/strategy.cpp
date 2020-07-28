@@ -6,7 +6,7 @@ using namespace std;
 
 // make your decision here
 const double disturbDx = 0.0003;
-const double disturbAngle = 0.05;
+const double disturbAngle = 0.04;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
 	int startTime = clock();
@@ -57,7 +57,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					vec_ret->angle = angle;
 				}
 				//如果价值高于一定值就输出，用于调试，设置INF表示不输出
-				if (tmp > -INF) {
+				if (tmp > INF) {
 					/*for (int j = 0; j < platform.Balls.size(); j++) {
 						printf("%d: (%lf, %lf)\n", j, platform.Balls[j].coordinate.real(), platform.Balls[j].coordinate.imag());
 					}*/
