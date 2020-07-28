@@ -90,6 +90,64 @@ void get_ranking(int* rank, const GAMESTATE* const gs)
 		}
 	}
 }
+
+// 判断是否被挡住，返回挡住的球的序号。没被挡住返回-1
+int is_block(const float stone[2], const GAMESTATE* const gs)
+{
+	int rank[16];
+	get_ranking(rank, gs);
+	int i = 0;
+	int flag = 0;
+	for (i = 0; i < gs->ShotNum; i++)
+	{
+		if (abs(gs->body[rank[i]][0] - stone[0]) < 2 * STONE_R && gs->body[rank[i]][1] > stone[1] + STONE_R)
+		{
+			flag = 1;
+			break;
+		}
+	}
+	if (flag == 0)
+	{
+		return -1;
+	}
+	else
+	{
+		return rank[i];
+	}
+}
+
+int is_block(const GAMESTATE* const gs)
+{
+	float center[2] = { TEE_X, TEE_Y };
+	return is_block(center, gs);
+}
+
+int is_block(double stone[2], const GAMESTATE* const gs)
+{
+	int rank[16];
+	get_ranking(rank, gs);
+	int i = 0;
+	int flag = 0;
+	for (i = 0; i < gs->ShotNum; i++)
+	{
+		if (abs(gs->body[rank[i]][0] - stone[0]) < 2 * STONE_R && gs->body[rank[i]][1] > stone[1] + STONE_R)
+		{
+			flag = 1;
+			break;
+		}
+	}
+	if (flag == 0)
+	{
+		return -1;
+	}
+	else
+	{
+		return rank[i];
+	}
+}
+
+
+
 // make your decision here
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
@@ -189,11 +247,13 @@ void DefenseStrategy(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	int rank[16];
 	get_ranking(rank, gs);
 
+	//先手第一球，防守策略直接投中心
 	if (gs->ShotNum == 0)
 	{
 		target[0] = TEE_X;
 		target[1] = TEE_Y;
 	}
+	//离中心最近的球不是自己
 	else if (gs->ShotNum % 2 != rank[0] % 2)
 	{
 		if (is_in_House(gs->body[rank[0]][0], gs->body[rank[0]][1]))
@@ -262,22 +322,22 @@ void TestStrategy(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 		{
 			if (get_dist(gs->body[0][0], gs->body[0][0]) < 2.5 * STONE_R) //近似认为对方壶在圆心附近，直接撞击
 			{
-				vec_ret->speed = 4.0f;
-				vec_ret->h_x = gs->body[0][0];
+				vec_ret->speed = 10.0f;
+				vec_ret->h_x = gs->body[0][0] - TEE_X;
 				vec_ret->angle = 0;
 			}
 			else if (abs(gs->body[0][0] - TEE_X) < 0.5 * STONE_R) //对方壶在中心道路上，用旋转方式绕行
 			{
-				vec_ret->speed = 3;
+				vec_ret->speed = 3.05;
 				if (gs->body[0][0] < TEE_X)
 				{
-					vec_ret->h_x = 0.5;
-					vec_ret->angle = -2.5;
+					vec_ret->h_x = 1.45;
+					vec_ret->angle = -10;
 				}
 				else
 				{
-					vec_ret->h_x = -0.5;
-					vec_ret->angle = 2.5;
+					vec_ret->h_x = -1.45;
+					vec_ret->angle = 10;
 				}
 			}
 			else
@@ -292,16 +352,16 @@ void TestStrategy(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 		{
 			if (abs(gs->body[0][0] - TEE_X) < 0.5 * STONE_R) //在中路，旋进
 			{
-				vec_ret->speed = 3;
+				vec_ret->speed = 3.06;
 				if (gs->body[0][0] < TEE_X)
 				{
-					vec_ret->h_x = 0.5;
-					vec_ret->angle = -2.5;
+					vec_ret->h_x = 1.6;
+					vec_ret->angle = -10;
 				}
 				else
 				{
-					vec_ret->h_x = -0.5;
-					vec_ret->angle = 2.5;
+					vec_ret->h_x = -1.6;
+					vec_ret->angle = 10;
 				}
 			}
 			else
@@ -323,30 +383,30 @@ void TestStrategy(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 			{
 				if (gs->body[0][0] < gs->body[1][0])
 				{
-					target[0] = gs->body[1][0] - 0.5 * STONE_R;
-					target[1] = gs->body[1][1] - 3.0;
-					Regular(target, vec_ret);
+					vec_ret->angle = 0;
+					vec_ret->h_x = gs->body[1][0] + 0.5 * STONE_R - TEE_X;
+					vec_ret->speed = 7;
 				}
 				else
 				{
-					target[0] = gs->body[1][0] + 0.5 * STONE_R;
-					target[1] = gs->body[1][1] - 3.0;
-					Regular(target, vec_ret);
+					vec_ret->angle = 0;
+					vec_ret->h_x = gs->body[1][0] + 0.5 * STONE_R - TEE_X;
+					vec_ret->speed = 7;
 
 				}
 			}
 			else  //自己壶近，保护
 			{
 				target[0] = gs->body[0][0];
-				target[1] = gs->body[0][1] + 3.5;
+				target[1] = gs->body[0][1] + 5.5;
 				Regular(target, vec_ret);
 			}
 		}
 		else if (is_in_House(gs->body[1])) //只剩对方壶
 		{
-			target[0] = gs->body[1][0];
-			target[1] = gs->body[1][1] - 10;
-			Regular(target, vec_ret);
+			vec_ret->angle = 0;
+			vec_ret->h_x = gs->body[1][0] - TEE_X;
+			vec_ret->speed = 10;
 		}
 		else if (num_in_House(gs) == 0) //圈内无壶
 		{
@@ -356,7 +416,127 @@ void TestStrategy(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 		}
 	}
 
-	//后手2
+	//最后一手球
+	else if (gs->ShotNum == 15)
+	{
+		int rank[16];
+		get_ranking(rank, gs);
+		if (!is_in_House(gs->body[rank[0]]))
+		{
+			target[0] = TEE_X;
+			target[1] = TEE_Y;
+			Regular(target, vec_ret);
+		}
+		else
+		{
+			//最靠近中心的是对方球
+			if (rank[0] % 2 != gs->ShotNum % 2)
+			{
+				int flag = 0;
+				int i;
+
+				//判断中心位置之前是否有球挡住
+				for (i = 0; i < gs->ShotNum; i++)
+				{
+					if (abs(gs->body[rank[i]][0] - TEE_X) < 2 * STONE_R && gs->body[rank[i]][1] > TEE_Y - STONE_R)
+					{
+						flag = 1;
+						break;
+					}
+				}
+				if (flag == 0)
+				{
+					target[0] = TEE_X;
+					target[1] = TEE_Y;
+					Regular(target, vec_ret);
+				}
+				else
+				{
+					for (i = 1; i < gs->ShotNum; i++)
+					{
+						if (abs(gs->body[rank[i]][0] - gs->body[rank[0]][0]) < 2 * STONE_R && gs->body[rank[i]][1] > gs->body[rank[0]][1])
+						{
+							flag = 1;
+							break;
+						}
+					}
+					if (flag == 0)
+					{
+						vec_ret->angle = 0;
+						vec_ret->h_x = gs->body[rank[0]][0] - TEE_X;
+						vec_ret->speed = 10;
+					}
+					else
+					{
+						vec_ret->angle = 0;
+						vec_ret->h_x = gs->body[rank[0]][0] - TEE_X;
+						vec_ret->speed = 10;
+					}
+				}
+			}
+			//最靠近中心的是自己球，增大分差
+			else
+			{
+				int i;
+				for (i = 1; i < gs->ShotNum; i++)
+				{
+					if (rank[i] % 2 != gs->ShotNum % 2)
+					{
+						break;
+					}
+				}
+				float dist = get_dist(gs->body[rank[i]]);
+				if (rank[i + 1] % 2 == gs->ShotNum % 2)
+				{
+					vec_ret->angle = 0;
+					vec_ret->h_x = gs->body[rank[i]][0] - TEE_X;
+					vec_ret->speed = 10;
+				}
+				else
+				{
+					if (dist < 5 * STONE_R)
+					{
+						vec_ret->angle = 0;
+						vec_ret->h_x = gs->body[rank[i]][0] - TEE_X;
+						vec_ret->speed = 10;
+					}
+					else
+					{
+						if (is_block(gs) == -1)
+						{
+							target[0] = TEE_X;
+							target[1] = TEE_Y;
+							Regular(target, vec_ret);
+						}
+						else
+						{
+							float h_x ;
+							int flag = 0;
+							for (h_x = TEE_X - dist; h_x < TEE_X + dist; h_x += 0.1)
+							{
+								target[0] = h_x;
+								target[1] = TEE_Y;
+								if (is_block(target, gs) == -1)
+								{
+									Regular(target, vec_ret);
+									flag = 1;
+									break;
+								}
+							}
+							if (flag == 0)
+							{
+								target[0] = TEE_X;
+								target[1] = TEE_Y;
+								Regular(target, vec_ret);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	//其余情况暴力撞
 	else
 	{
 		int rank[16];
@@ -373,38 +553,55 @@ void TestStrategy(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 			{
 				int flag = 0;
 				int i;
+				int j;
 				for (i = 1; i < gs->ShotNum; i++)
 				{
-					if (abs(gs->body[rank[i]][0] - gs->body[rank[0]][0]) < 2 * STONE_R && gs->body[rank[i]][1] > gs->body[rank[0]][1])
+					j = is_block(gs->body[rank[i]], gs);
+					if (j != -1)
 					{
-						flag = 1;
-						break;
+						if (j % 2 == gs->ShotNum % 2)
+						{
+							flag = -1;
+							break;
+						}
+						else
+						{
+							flag = 1;
+							break;
+						}
 					}
 				}
 				if (flag == 0)
 				{
-					target[0] = gs->body[rank[0]][0];
-					target[1] = gs->body[rank[0]][1] - 10;
-					Regular(target, vec_ret);
+					vec_ret->h_x = gs->body[rank[0]][0] - TEE_X;
+					vec_ret->angle = 0;
+					vec_ret->speed = 10;
+				}
+				else if (flag == 1)
+				{
+					vec_ret->angle = 0;
+					vec_ret->h_x = gs->body[rank[i]][0] - TEE_X;
+					vec_ret->speed = 15;
 				}
 				else
 				{
-					vec_ret->speed = 3.2;
-					if (gs->body[rank[i]][0] < gs->body[rank[0]][0])
+					if (gs->body[j][0] < gs->body[rank[0]][0])
 					{
-						vec_ret->h_x = gs->body[rank[0]][0] + 0.5*STONE_R;
-						vec_ret->angle = -2.5;
+						vec_ret->angle = 0;
+						vec_ret->speed = 10;
+						vec_ret->h_x = gs->body[j][0] - TEE_X + STONE_R;
 					}
 					else
 					{
-						vec_ret->h_x = gs->body[rank[0]][0] - 0.5*STONE_R;
-						vec_ret->angle = 2.5;
+						vec_ret->angle = 0;
+						vec_ret->speed = 10;
+						vec_ret->h_x = gs->body[j][0] - TEE_X - STONE_R;
 					}
 				}
 			}
 			else
 			{
-				target[0] = gs->body[rank[0]][0] - 0.5 * STONE_R;
+				target[0] = gs->body[rank[0]][0] - 0.5 * STONE_R + 0.3 * STONE_R;
 				target[1] = gs->body[rank[0]][1] + 4;
 				Regular(target, vec_ret);
 			}
