@@ -5,9 +5,9 @@ using namespace std;
 
 
 // make your decision here
-const double disturbV = 0.004;
-const double disturbDx = 0.01;
-const double disturbAngle = 0.03;
+const double disturbV = 0.003;
+const double disturbDx = 0.015;
+const double disturbAngle = 0.04;
 const double Weight = 0.3;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
