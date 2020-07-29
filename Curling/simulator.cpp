@@ -42,6 +42,7 @@ void Platform::Run() {
 	bool moveFlag;
 	int count[16][16] = {};
 	int round = 0;
+	record = 0;
 	do {
 		round++;
 		double delta_time = DELTA_TIME;
@@ -56,6 +57,9 @@ void Platform::Run() {
 						if (std::abs(Balls[j].coordinate) > eps && count[i][j] <= round - 5) {
 							std::complex<double> deltaC = Balls[i].coordinate - Balls[j].coordinate;
 							std::complex<double> deltaV = Balls[i].velocity - Balls[j].velocity;
+							if (std::abs(deltaV) < MIN_VELOCITY) {
+								continue;
+							}
 							std::complex<double> tmp = -deltaC * std::conj(deltaV) / std::abs(deltaV);
 							double dist = std::abs(tmp.imag());
 							if (dist < 2 * STONE_R && tmp.real() > -eps) {
@@ -72,12 +76,14 @@ void Platform::Run() {
 									std::complex<double> F = std::conj(deltaC) * deltaV;
 									double angleCos = std::abs(F.real()) / std::abs(deltaV);
 									if (std::abs(F.real()) > 2) {
+										record -= 0.5;
 										F.imag(0);
 										Balls[i].velocity -= F * deltaC;
 										Balls[j].velocity += F * deltaC;
 									}
 									else {
-										F.imag(F.imag() * angleCos);
+										record -= 2;
+										F.imag(F.imag() * std::pow(angleCos, 0.9));
 										F *= 0.5;
 										Balls[i].velocity -= F * deltaC;
 										Balls[j].velocity += F * deltaC;
@@ -250,7 +256,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 
 	//场上对方壶数量越少越好
-	double tmpWeight = 0.5;
+	double tmpWeight = 1;
 	if (N & 1) {
 		tmpWeight = 10000;
 	}
@@ -260,7 +266,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 		double dist = std::abs(Balls[i].coordinate - TEE);
 		if (dist < HOUSE_R + STONE_R + 0.05) {
-			value -= tmpWeight * (1 + 1. / (1 + dist));
+			value -= tmpWeight * (0.5 + 1. / (1 + dist));
 		}
 	}
 	//场上自己壶数量越多越好
@@ -271,7 +277,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 		double dist = std::abs(Balls[i].coordinate - TEE);
 		if (dist < HOUSE_R + STONE_R - 0.05) {
-			value += tmpWeight * (1 + 1. / (1 + dist));
+			value += tmpWeight * (0.5 + 1. / (1 + dist));
 		}
 	}
 
@@ -280,7 +286,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	minDist[0] += 0.1;
 	int winSide = minDist[1] < minDist[0];
 	int flag = winSide == 0 ? 1 : -1;
-	tmpWeight = 0.5;
+	tmpWeight = 1;
 	if (N == 16) {
 		value /= 1e5;
 		tmpWeight = 10000;
@@ -294,12 +300,12 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 					std::complex<double> dist = Balls[j].coordinate - Balls[i].coordinate;
 					if (i != j && Balls[j].coordinate.imag() > 0 && std::abs(Balls[j].coordinate.real()) < STONE_R) {
 						if (Balls[j].coordinate.imag() < 0.6) {
-							tmpWeight += 0.3;
+							tmpWeight += 0.5;
 						}
 						else tmpWeight += 0.1;
 					}
 				}
-				value += flag * (1 / (dist + 1) + tmpWeight);
+				value += flag * (1 / (dist + 2) + tmpWeight);
 			}
 		}
 	}
