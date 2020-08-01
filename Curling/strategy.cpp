@@ -17,24 +17,24 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	Platform oldPlatform(gs);
 
 	std::vector <double> DX;
-	for (double dx = -1.7; dx <= 1.7; dx += 0.05) {
+	for (double dx = -1.7; dx <= 1.7; dx += 0.1) {
 		DX.push_back(dx);
 	}
 	int normalNumber = DX.size();
-	for (int i = gs->ShotNum - 1; i >= 0; i-=2) {
+	for (int i = gs->ShotNum - 1; i >= 0; i -= 2) {
 		if (gs->body[i][0] != 0) {
 			//printf("%lf\n", gs->body[i][0] - 2.3506);
 			DX.push_back(gs->body[i][0] - 2.3506);
 		}
 	}
 	int RecA = 0;
-	
+
 	double tmpDx = 0, tmpVy = 0, tmpAngle = 0;
 	for (int i = 0; i < DX.size(); i++) {
 		double dx = DX[i];
 		for (double angle = -10; angle <= 10; angle += 10) {
 			double oldValue = -INF - 1;
-			for (double vy = 2.6; vy <= 8; vy += vy < 4.5 ? 0.05 : 1) {
+			for (double vy = 2.6; vy <= 8; vy += vy < 4.5 ? 0.1 : 1) {
 				if (angle != 0 && i >= normalNumber) {
 					break;
 				}
@@ -47,7 +47,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 				}
 				oldValue = tmp;
 				for (int delta = -1; delta <= 1 && tmp > maxValue; delta += 2) {
-					for (int deltaV = -1; deltaV <= 1 && tmp > maxValue; deltaV++) {
+					for (int deltaV = 0; deltaV <= 0 && tmp > maxValue; deltaV++) {
 						Platform platform(oldPlatform);
 						platform.AddBall(vy + deltaV * disturbV, dx + delta * disturbDx, angle * (1 + delta * disturbAngle));
 						platform.Run();
@@ -78,7 +78,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 			}
 		}
 	}
-	
+
 	double rangeDx = 0.03;
 	double rangeVy = 0.03;
 	double rangeAngle = 6;
@@ -119,7 +119,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 			}
 		}
 	}
-	
-	printf("COST: %lf s  %lf\n", 1.*(clock() - startTime)/CLOCKS_PER_SEC, 1.*RecA/ CLOCKS_PER_SEC);
+
+	printf("COST: %lf s  %lf\n", 1.*(clock() - startTime) / CLOCKS_PER_SEC, 1.*RecA / CLOCKS_PER_SEC);
 	return;
 }

@@ -82,7 +82,7 @@ void Platform::Run() {
 										Balls[j].velocity += F * deltaC;
 									}
 									else {
-										record -= 2;
+										record -= 5;
 										F.imag(F.imag() * std::pow(angleCos, 0.9));
 										F *= 0.5;
 										Balls[i].velocity -= F * deltaC;
@@ -207,34 +207,6 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	//估价
 	double value = 0;
 	double minDist[2] = { HOUSE_R + STONE_R, HOUSE_R + STONE_R };
-
-	if (N <= 4) {
-		for (int i = N - 1, j = 1; i >= 0; i--, j = -j) {
-			if (InDefendArea(Balls[i].coordinate)) {
-				value += 4 * j;
-			}
-		}
-	}
-	//printf("%d\n", N);
-
-	//我方壶尽可能分开
-	double tmpSum = 0;
-	int tmpCount = 0;
-	for (int i = N - 1; i >= 0; i -= 2) {
-		if (std::abs(Balls[i].coordinate) > eps) {
-			for (int j = i - 2; j >= 0; j -= 2) {
-				if (std::abs(Balls[j].coordinate) > eps) {
-					std::complex<double> dist = Balls[i].coordinate - Balls[j].coordinate;
-					tmpSum += max(min(std::abs(dist.real()), 1) * 1.5, min(std::abs(dist.imag()), 1.5));
-					tmpCount++;
-				}
-			}
-		}
-	}
-	if (tmpCount) {
-		value += 2 * tmpSum / tmpCount;
-	}
-
 	double WeightForY = 0.6;
 	//我方冰壶离中心越近越好
 	for (int i = N - 1, j = 1; i >= 0; i--, j = -j) {
@@ -253,58 +225,37 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 			}
 		}
 	}
+	value /= 1e5;
 
 
-	//场上对方壶数量越少越好
-	double tmpWeight = 1;
-	if (N & 1) {
-		tmpWeight = 10000;
-	}
+	//场上壶数量越少越好
+	double tmpWeight = 100;
 	//printf("%d\n", N);
-	for (int i = N - 2; i >= 0; i -= 2) {
-		//printf("%d (%lf,%lf) %d %d\n", i, Balls[i].coordinate.real(), Balls[i].coordinate.imag(), InHouse(std::abs(Balls[i].coordinate)), InDefendArea(std::abs(Balls[i].coordinate)));
-
-		double dist = std::abs(Balls[i].coordinate - TEE);
-		if (dist < HOUSE_R + STONE_R + 0.05) {
-			value -= tmpWeight * (0.5 + 1. / (1 + dist));
+	for (int i = 0; i < N; i ++) {
+		if (Balls[i].coordinate.imag() > 1) {
+			if ((i^N) & 1) {
+				value -= tmpWeight * (Balls[i].coordinate.imag() + 1);
+			}
+			else {
+				value -= tmpWeight;
+			}
 		}
 	}
-	//场上自己壶数量越多越好
-	tmpWeight = 1;
-	//printf("%d\n", N);
-	for (int i = N - 1; i >= 0; i -= 2) {
-		//printf("%d (%lf,%lf) %d %d\n", i, Balls[i].coordinate.real(), Balls[i].coordinate.imag(), InHouse(std::abs(Balls[i].coordinate)), InDefendArea(std::abs(Balls[i].coordinate)));
-
-		double dist = std::abs(Balls[i].coordinate - TEE);
-		if (dist < HOUSE_R + STONE_R - 0.05) {
-			value += tmpWeight * (0.5 + 1. / (1 + dist));
-		}
+	if (N < 16) {
+		return value + record;
 	}
 
 
+	value /= 1e5;
 	//根据离中心最近的壶做判断
 	minDist[0] += 0.1;
 	int winSide = minDist[1] < minDist[0];
 	int flag = winSide == 0 ? 1 : -1;
-	tmpWeight = 1;
-	if (N == 16) {
-		value /= 1e5;
-		tmpWeight = 10000;
-	}
+	tmpWeight = 100;
 	if (minDist[winSide] < HOUSE_R + STONE_R) {
 		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
 			double dist = std::abs(Balls[i].coordinate - TEE);
 			if (dist < minDist[winSide ^ 1]) {
-				//判断保护球
-				for (int j = 0; j < N; j++) {
-					std::complex<double> dist = Balls[j].coordinate - Balls[i].coordinate;
-					if (i != j && Balls[j].coordinate.imag() > 0 && std::abs(Balls[j].coordinate.real()) < STONE_R) {
-						if (Balls[j].coordinate.imag() > 0.6 &&Balls[j].coordinate.imag() < 1.2 && std::abs(Balls[j].coordinate.real()) > 0.08) {
-							tmpWeight += 0.5;
-						}
-						else tmpWeight += 0.1;
-					}
-				}
 				value += flag * (1 / (dist + 2) + tmpWeight);
 			}
 		}
