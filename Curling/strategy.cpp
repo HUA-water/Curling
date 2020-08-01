@@ -6,11 +6,31 @@ using namespace std;
 
 // make your decision here
 const double disturbV = 0.003;
-const double disturbDx = 0.015;
-const double disturbAngle = 0.04;
+const double disturbDx = 0.00;
+const double disturbAngle = 0.00;
 const double Weight = 0.3;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
+	if (gs->ShotNum == 0) {
+		vec_ret->speed = 10.0f;
+		vec_ret->h_x = 0.0f;
+		vec_ret->angle = 0.0f;
+		return;
+	}
+	else if (gs->ShotNum < 4) {
+		for (int i = gs->ShotNum - 1; i >= 0; i -= 2)
+			if (gs->body[i][1] > 1) {
+				double x = gs->body[i][1];
+				vec_ret->speed = x * x*(-0.03560838) + 0.70997966*x + 1.26361588;
+				vec_ret->h_x = gs->body[i][0] - 2.3506;
+				vec_ret->angle = 0.0f;
+				return;
+			}
+		vec_ret->speed = 10.0f;
+		vec_ret->h_x = 0.0f;
+		vec_ret->angle = 0.0f;
+		return;
+	}
 	int startTime = clock();
 	double maxValue = -INF;
 
@@ -34,7 +54,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 		double dx = DX[i];
 		for (double angle = -10; angle <= 10; angle += 10) {
 			double oldValue = -INF - 1;
-			for (double vy = 2.6; vy <= 8; vy += vy < 4.5 ? 0.1 : 1) {
+			for (double vy = 2.6; vy <= 7; vy += vy < 4.5 ? 0.1 : 1) {
 				if (angle != 0 && i >= normalNumber) {
 					break;
 				}
@@ -42,10 +62,11 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 				platform.AddBall(vy, dx, angle);
 				platform.Run();
 				double tmp = platform.Evaluation(oldPlatform);
-				if (tmp == oldValue) {
+				/*if (tmp == oldValue) {
 					break;
-				}
+				}*/
 				oldValue = tmp;
+				/*
 				for (int delta = -1; delta <= 1 && tmp > maxValue; delta += 2) {
 					for (int deltaV = 0; deltaV <= 0 && tmp > maxValue; deltaV++) {
 						Platform platform(oldPlatform);
@@ -57,6 +78,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 						}
 					}
 				}
+				*/
 
 				if (tmp > maxValue) {
 					maxValue = tmp;

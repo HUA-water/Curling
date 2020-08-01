@@ -4,6 +4,7 @@
 
 Platform::Platform(const GAMESTATE* const gs) {
 	Balls.clear();
+	lastRound = gs->LastEnd == (gs->CurEnd + 1);
 	for (int i = 0; i < gs->ShotNum; i++) {
 		Balls.push_back(Ball(std::complex<double>(gs->body[i][0], gs->body[i][1])));
 	}
@@ -76,13 +77,13 @@ void Platform::Run() {
 									std::complex<double> F = std::conj(deltaC) * deltaV;
 									double angleCos = std::abs(F.real()) / std::abs(deltaV);
 									if (std::abs(F.real()) > 2) {
-										record -= 0.5;
+										//record -= 0.5;
 										F.imag(0);
 										Balls[i].velocity -= F * deltaC;
 										Balls[j].velocity += F * deltaC;
 									}
 									else {
-										record -= 5;
+										record -= 70;
 										F.imag(F.imag() * std::pow(angleCos, 0.9));
 										F *= 0.5;
 										Balls[i].velocity -= F * deltaC;
@@ -225,19 +226,27 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 			}
 		}
 	}
-	value /= 1e5;
+	value /= 1e4;
 
 
 	//场上壶数量越少越好
 	double tmpWeight = 100;
 	//printf("%d\n", N);
 	for (int i = 0; i < N; i ++) {
+		double dist = std::abs(Balls[i].coordinate - TEE);
 		if (Balls[i].coordinate.imag() > 1) {
+			int blocked = 0;
+			for (int j = N - 1; j >= 0; j--) {
+				std::complex<double> deltaC = Balls[j].coordinate - Balls[i].coordinate;
+				if (std::abs(deltaC.real()) < 0.08 && std::abs(deltaC.imag() - 0.29) < 0.08) {
+					blocked = 1;
+				}
+			}
 			if ((i^N) & 1) {
-				value -= tmpWeight * (Balls[i].coordinate.imag() + 1);
+				value -= tmpWeight;
 			}
 			else {
-				value -= tmpWeight;
+				value -= tmpWeight * (1/(1 + dist) + 1 + (1-blocked));
 			}
 		}
 	}
@@ -246,19 +255,24 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	}
 
 
-	value /= 1e5;
+	value /= 1e4;
 	//根据离中心最近的壶做判断
 	minDist[0] += 0.1;
 	int winSide = minDist[1] < minDist[0];
 	int flag = winSide == 0 ? 1 : -1;
 	tmpWeight = 100;
+	int count = 0;
 	if (minDist[winSide] < HOUSE_R + STONE_R) {
 		for (int i = N - 1 - winSide; i >= 0; i -= 2) {
 			double dist = std::abs(Balls[i].coordinate - TEE);
 			if (dist < minDist[winSide ^ 1]) {
-				value += flag * (1 / (dist + 2) + tmpWeight);
+				value += flag * tmpWeight;
+				count += flag;
 			}
 		}
+	}
+	if (!lastRound && count == 0) {
+		value += 1.5*tmpWeight;
 	}
 	return value + record;
 }

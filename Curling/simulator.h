@@ -65,4 +65,5 @@ public:
 
 	std::vector<Ball> Balls;
 	double record;
+	bool lastRound;
 };
