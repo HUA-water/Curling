@@ -243,7 +243,9 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 				}
 			}
 			if ((i^N) & 1) {
-				value -= tmpWeight;
+				if (Balls[i].coordinate.imag() > 4.5) {
+					value -= tmpWeight / 10;
+				}
 			}
 			else {
 				value -= tmpWeight * (1/(1 + dist) + 1 + (1-blocked));

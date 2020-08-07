@@ -12,7 +12,7 @@ const double Weight = 0.3;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
 	if (gs->ShotNum == 0) {
-		vec_ret->speed = 10.0f;
+		vec_ret->speed = 3.1f;
 		vec_ret->h_x = 0.0f;
 		vec_ret->angle = 0.0f;
 		return;
