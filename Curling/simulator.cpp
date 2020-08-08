@@ -8,6 +8,7 @@ Platform::Platform(const GAMESTATE* const gs) {
 		Balls.push_back(Ball(std::complex<double>(gs->body[i][0], gs->body[i][1])));
 	}
 	record = 0;
+	collsionWeight = 1;
 }
 
 void Platform::AddBall(double vy, double dx, double angle) {
@@ -40,9 +41,10 @@ void Platform::modelWork(int input[4], int output[4]) {
 }
 void Platform::Run() {
 	bool moveFlag;
-	int count[16][16] = {};
+	double count[16][16] = {};
 	int round = 0;
 	record = 0;
+	double timeNow = 0;
 	do {
 		round++;
 		double delta_time = DELTA_TIME;
@@ -54,7 +56,7 @@ void Platform::Run() {
 			for (int i = 0; i < Balls.size(); i++){
 				if (std::abs(Balls[i].coordinate) > eps) {
 					for (int j = i + 1; j < Balls.size(); j++) {
-						if (std::abs(Balls[j].coordinate) > eps && count[i][j] <= round - 5) {
+						if (std::abs(Balls[j].coordinate) > eps && count[i][j] <= timeNow - 0.4) {
 							std::complex<double> deltaC = Balls[i].coordinate - Balls[j].coordinate;
 							std::complex<double> deltaV = Balls[i].velocity - Balls[j].velocity;
 							if (std::abs(deltaV) < MIN_VELOCITY) {
@@ -70,20 +72,32 @@ void Platform::Run() {
 										delta_time = time_cost;
 									}
 								}else{
+									record -= 0.2;
 									collisionFlag = true;
-									count[i][j] = round;
+									for (int k = 0; k < Balls.size(); k++) {
+										double lastCollsion = max(count[i][k], count[k][i]);
+										lastCollsion = max(lastCollsion, max(count[j][k], count[k][j]));
+										if (lastCollsion > eps && lastCollsion < timeNow - 0.4) {
+											record -= 1;
+											break;
+										}
+									}
+									count[i][j] = timeNow;
 									deltaC /= std::abs(deltaC);
 									std::complex<double> F = std::conj(deltaC) * deltaV;
 									double angleCos = std::abs(F.real()) / std::abs(deltaV);
 									if (std::abs(F.real()) > 2) {
-										record -= 0.5;
 										F.imag(0);
 										Balls[i].velocity -= F * deltaC;
 										Balls[j].velocity += F * deltaC;
 									}
 									else {
-										record -= 2;
-										F.imag(F.imag() * std::pow(angleCos, 0.9));
+										double maxW = 1 - (1 - angleCos) * 0.5;
+										double minW = 1 - (1 - angleCos) * 3;
+										if (minW < 0) {
+											minW = 0;
+										}
+										F.imag(F.imag() * (minW + (maxW - minW) * collsionWeight));
 										F *= 0.5;
 										Balls[i].velocity -= F * deltaC;
 										Balls[j].velocity += F * deltaC;
@@ -118,7 +132,7 @@ void Platform::Run() {
 				//printf("%lf %lf\n", Balls[i].coordinate.real(), Balls[i].coordinate.imag());
 				Ball &ball = Balls[i];
 				std::complex<double> _velocity = Balls[i].velocity;
-				if (ball.coordinate.real() < STONE_R || ball.coordinate.real() > MAX_POINT[0] - STONE_R || ball.coordinate.imag() < BACK_LINE - STONE_R || ball.coordinate.imag() > MAX_POINT[1] - STONE_R) {
+				if (ball.coordinate.real() < STONE_R || ball.coordinate.real() > MAX_POINT[0] - STONE_R || ball.coordinate.imag() < BACK_LINE - STONE_R) {
 					ball.coordinate = ball.velocity = ball.angle = 0;
 				}
 				double Abs = std::abs(ball.velocity);
@@ -151,7 +165,12 @@ void Platform::Run() {
 				ball.coordinate += (Balls[i].velocity + _velocity) * 0.5 * delta_time;
 			}
 		}
+		timeNow += delta_time;
 	} while (moveFlag);
+}
+
+void Platform::setCollsionWeight(double weight) {
+	collsionWeight = weight;
 }
 bool Platform::InHouse(std::complex<double> position) {
 	if (std::abs(position - TEE) < HOUSE_R + STONE_R) {
@@ -167,7 +186,7 @@ bool Platform::InHouseLoose(std::complex<double> position) {
 }
 bool Platform::OutLoose(std::complex<double> position)
 {
-	if (position.imag() < BACK_LINE + 0.3 || position.real() < 0.2 || position.real() > MAX_POINT[0] - 0.2) {
+	if (position.imag() < BACK_LINE - STONE_R || position.real() < STONE_R || position.real() > MAX_POINT[0] - STONE_R) {
 		return true;
 	}
 	return false;
@@ -211,7 +230,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 	if (N <= 4) {
 		for (int i = N - 1, j = 1; i >= 0; i--, j = -j) {
 			if (InDefendArea(Balls[i].coordinate)) {
-				value += 4 * j;
+				value += 3 * j;
 			}
 		}
 	}
@@ -225,7 +244,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 			for (int j = i - 2; j >= 0; j -= 2) {
 				if (std::abs(Balls[j].coordinate) > eps) {
 					std::complex<double> dist = Balls[i].coordinate - Balls[j].coordinate;
-					tmpSum += max(min(std::abs(dist.real()), 1) * 1.5, min(std::abs(dist.imag()), 1.5));
+					tmpSum += min(std::abs(dist.real()), 1);
 					tmpCount++;
 				}
 			}
@@ -266,6 +285,16 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 		double dist = std::abs(Balls[i].coordinate - TEE);
 		if (dist < HOUSE_R + STONE_R + 0.05) {
+			int blocked = 0;
+			for (int j = N - 1; j >= 0; j--) {
+				std::complex<double> deltaC = Balls[j].coordinate - Balls[i].coordinate;
+				if (std::abs(deltaC.real()) < 0.15 && std::abs(deltaC.imag() - 0.29) < 0.2) {
+					blocked = 1;
+				}
+			}
+			if (blocked && Balls[i].coordinate.imag() < 4) {
+				continue;
+			}
 			value -= tmpWeight * (0.5 + 1. / (1 + dist));
 		}
 	}

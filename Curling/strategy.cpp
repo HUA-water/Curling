@@ -7,8 +7,9 @@ using namespace std;
 // make your decision here
 const double disturbV = 0.003;
 const double disturbDx = 0.015;
-const double disturbAngle = 0.04;
-const double Weight = 0.3;
+const double disturbAngle = 0.015;
+const double spaceColl = 0.33;
+const double Weight = 0.7;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
 	int startTime = clock();
@@ -22,7 +23,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	}
 	int normalNumber = DX.size();
 	for (int i = gs->ShotNum - 1; i >= 0; i-=2) {
-		if (gs->body[i][0] != 0) {
+		if (gs->body[i][0] > 1) {
 			//printf("%lf\n", gs->body[i][0] - 2.3506);
 			DX.push_back(gs->body[i][0] - 2.3506);
 		}
@@ -34,7 +35,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 		double dx = DX[i];
 		for (double angle = -10; angle <= 10; angle += 10) {
 			double oldValue = -INF - 1;
-			for (double vy = 2.6; vy <= 8; vy += vy < 4.5 ? 0.05 : 1) {
+			for (double vy = 2.6; vy <= 6.4; vy += vy < 4.5 ? 0.05 : 0.5) {
 				if (angle != 0 && i >= normalNumber) {
 					break;
 				}
@@ -46,15 +47,14 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					break;
 				}
 				oldValue = tmp;
-				for (int delta = -1; delta <= 1 && tmp > maxValue; delta += 2) {
-					for (int deltaV = -1; deltaV <= 1 && tmp > maxValue; deltaV++) {
-						Platform platform(oldPlatform);
-						platform.AddBall(vy + deltaV * disturbV, dx + delta * disturbDx, angle * (1 + delta * disturbAngle));
-						platform.Run();
-						double value = platform.Evaluation(oldPlatform);
-						if (value < tmp) {
-							tmp = tmp * Weight + value * (1 - Weight);
-						}
+				for (double deltaColl = 0; deltaColl <= 1 && tmp > maxValue; deltaColl += spaceColl) {
+					Platform platform(oldPlatform);
+					platform.setCollsionWeight(deltaColl);
+					platform.AddBall(vy, dx, angle);
+					platform.Run();
+					double value = platform.Evaluation(oldPlatform);
+					if (value < tmp) {
+						tmp = tmp * Weight + value * (1 - Weight);
 					}
 				}
 
@@ -81,19 +81,20 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 	
 	double rangeDx = 0.03;
 	double rangeVy = 0.03;
-	double rangeAngle = 6;
+	double rangeAngle = 0.5;
 	for (double dx = tmpDx - rangeDx; dx <= tmpDx + rangeDx; dx += 0.01) {
 		for (double vy = tmpVy - rangeVy; vy <= tmpVy + rangeVy; vy += 0.01) {
-			for (double angle = tmpAngle - rangeAngle; angle <= tmpAngle + rangeAngle; angle += 0.5) {
+			for (double angle = tmpAngle - rangeAngle; angle <= tmpAngle + rangeAngle; angle += 0.1) {
 				if (std::abs(dx) <= 2 && std::abs(angle) <= 10 && vy < 10) {
 					Platform platform(gs);
 					platform.AddBall(vy, dx, angle);
 					platform.Run();
 					double tmp = platform.Evaluation(gs);
-					for (int delta = -1; delta <= 1 && tmp > maxValue; delta += 2) {
-						for (int deltaV = -1; deltaV <= 1 && tmp > maxValue; deltaV++) {
+					for (double deltaColl = 0; deltaColl <= 1 && tmp > maxValue; deltaColl += spaceColl/2) {
+						for (int deltaAngle = -1; deltaAngle <= 1; deltaAngle += 2) {
 							Platform platform(oldPlatform);
-							platform.AddBall(vy + deltaV * disturbV, dx + delta * disturbDx, angle * (1 + delta * disturbAngle));
+							platform.setCollsionWeight(deltaColl);
+							platform.AddBall(vy, dx, angle * (1 + disturbAngle * deltaAngle));
 							platform.Run();
 							double value = platform.Evaluation(oldPlatform);
 							if (value < tmp) {
