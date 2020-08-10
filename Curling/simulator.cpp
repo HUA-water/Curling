@@ -209,7 +209,7 @@ bool Platform::InDefendAreaLoose(std::complex<double> position) {
 	}
 	return false;
 }
-double Platform::Evaluation(const Platform& const oldPlatform) {
+double Platform::Evaluation(const Platform& const oldPlatform, bool defense) {
 	int N = Balls.size();
 	//自由防守区规则判断
 	if (N == 1 && !InDefendAreaLoose(Balls[0].coordinate)) {
@@ -251,7 +251,7 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 		}
 	}
 	if (tmpCount) {
-		value += 2 * tmpSum / tmpCount;
+		value += 5 * tmpSum / tmpCount;
 	}
 
 	double WeightForY = 0.6;
@@ -276,15 +276,15 @@ double Platform::Evaluation(const Platform& const oldPlatform) {
 
 	//场上对方壶数量越少越好
 	double tmpWeight = 1;
-	if (N & 1) {
+	if (N & 1 || defense) {
 		tmpWeight = 10000;
 	}
 	//printf("%d\n", N);
 	for (int i = N - 2; i >= 0; i -= 2) {
 		//printf("%d (%lf,%lf) %d %d\n", i, Balls[i].coordinate.real(), Balls[i].coordinate.imag(), InHouse(std::abs(Balls[i].coordinate)), InDefendArea(std::abs(Balls[i].coordinate)));
-
-		double dist = std::abs(Balls[i].coordinate - TEE);
-		if (dist < HOUSE_R + STONE_R + 0.05) {
+		std::complex<double> delta = Balls[i].coordinate - TEE;
+		double dist = std::abs(delta);
+		if (dist < HOUSE_R + STONE_R + 0.05 || (std::abs(delta.real()) < HOUSE_R + STONE_R && delta.imag() > 0)) {
 			int blocked = 0;
 			for (int j = N - 1; j >= 0; j--) {
 				std::complex<double> deltaC = Balls[j].coordinate - Balls[i].coordinate;

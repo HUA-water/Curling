@@ -20,7 +20,7 @@ public:
 	void setCollsionWeight(double weight);
 	void AddBall(double vy, double dx, double angle);
 	void Run();
-	double Evaluation(const Platform& const oldPlatform);
+	double Evaluation(const Platform& const oldPlatform, bool defense = false);
 	bool InDefendArea(std::complex<double> position);
 	bool InDefendAreaLoose(std::complex<double> position);
 	bool InHouse(std::complex<double> position);
@@ -39,7 +39,7 @@ public:
 	const double MIN_ANGLE = 10;
 	const double ANGLE_LOSS[3] = { 0.2127, 0.214, 0.2127 }; //转角损耗
 	const double VELOCITY_LOSS_ANGLE[3] = { 0.00065, 0, 0 }; //转角的存在导致的速度损耗
-	const double VELOCITY_ANGLE[3] = { 0.00190, 0.0, 0.00182 }; //转角的存在导致的速度方向改变
+	const double VELOCITY_ANGLE[3] = { 0.001895, 0.0, 0.00182 }; //转角的存在导致的速度方向改变
 	const double ANGLE_INCRESS_VELOCITY[3] = { 0, 0, 0 };
 	const double DELTA_TIME = 0.2; //离散时间间隔
 	const double COLLISION[2] = { 0.5 , 0.5*0.45}; //碰撞力的损耗（实部和虚部）

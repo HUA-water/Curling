@@ -7,7 +7,7 @@ using namespace std;
 
 // state of the game
 GAMESTATE GameState;
-
+int totalScore = 0;
 
 //! initialize GAMESTATE
 void initGameState(GAMESTATE *pgs) {
@@ -117,7 +117,7 @@ bool processCommand(char *command)
 		// initialize GameState
 		initGameState(&GameState);
 		sendCommand("READYOK");
-		sendCommand("NAME search-d");
+		sendCommand("NAME search-d2");
 	}
 	else if (_stricmp(cmd, "POSITION") == 0) {
 		for (int i = 0; i < 16; i++) {
@@ -180,6 +180,7 @@ bool processCommand(char *command)
 			return false;
 		}
 		GameState.Score[GameState.CurEnd] = atoi(buffer);
+		totalScore += atoi(buffer);
 	}
 	else if (_stricmp(cmd, "MOTIONINFO") == 0)
 	{

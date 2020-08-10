@@ -10,8 +10,37 @@ const double disturbDx = 0.015;
 const double disturbAngle = 0.015;
 const double spaceColl = 0.33;
 const double Weight = 0.7;
+extern int totalScore;
 void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 {
+	bool defense = false;
+	printf("Score:%d\n", totalScore);
+	if (totalScore + ((gs->LastEnd - gs->CurEnd) & 1) * ((gs->ShotNum & 1) ? 1 : -1) > 0) {
+		defense = true;
+		printf("Defense on\n");
+	}
+	if (defense) {
+		if (gs->ShotNum == 0) {
+			vec_ret->speed = 3.1f;
+			vec_ret->h_x = 0.0f;
+			vec_ret->angle = 0.0f;
+			return;
+		}
+		else if (gs->ShotNum < 4) {
+			for (int i = gs->ShotNum - 1; i >= 0; i -= 2)
+				if (gs->body[i][1] > 1) {
+					double x = gs->body[i][1];
+					vec_ret->speed = x * x*(-0.03560838) + 0.70997966*x + 1.26361588;
+					vec_ret->h_x = gs->body[i][0] - 2.3506;
+					vec_ret->angle = 0.0f;
+					return;
+				}
+			vec_ret->speed = 3.1f;
+			vec_ret->h_x = 0.0f;
+			vec_ret->angle = 0.0f;
+			return;
+		}
+	}
 	int startTime = clock();
 	double maxValue = -INF;
 
@@ -42,7 +71,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 				Platform platform(oldPlatform);
 				platform.AddBall(vy, dx, angle);
 				platform.Run();
-				double tmp = platform.Evaluation(oldPlatform);
+				double tmp = platform.Evaluation(oldPlatform, defense);
 				if (tmp == oldValue) {
 					break;
 				}
@@ -52,7 +81,7 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					platform.setCollsionWeight(deltaColl);
 					platform.AddBall(vy, dx, angle);
 					platform.Run();
-					double value = platform.Evaluation(oldPlatform);
+					double value = platform.Evaluation(oldPlatform, defense);
 					if (value < tmp) {
 						tmp = tmp * Weight + value * (1 - Weight);
 					}
@@ -89,14 +118,14 @@ void getBestShot(const GAMESTATE* const gs, SHOTINFO* vec_ret)
 					Platform platform(gs);
 					platform.AddBall(vy, dx, angle);
 					platform.Run();
-					double tmp = platform.Evaluation(gs);
+					double tmp = platform.Evaluation(oldPlatform, defense);
 					for (double deltaColl = 0; deltaColl <= 1 && tmp > maxValue; deltaColl += spaceColl/2) {
 						for (int deltaAngle = -1; deltaAngle <= 1; deltaAngle += 2) {
 							Platform platform(oldPlatform);
 							platform.setCollsionWeight(deltaColl);
 							platform.AddBall(vy, dx, angle * (1 + disturbAngle * deltaAngle));
 							platform.Run();
-							double value = platform.Evaluation(oldPlatform);
+							double value = platform.Evaluation(oldPlatform, defense);
 							if (value < tmp) {
 								tmp = tmp * Weight + value * (1 - Weight);
 							}
